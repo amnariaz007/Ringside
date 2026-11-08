@@ -31,7 +31,7 @@ class OrderListSerializer(serializers.ModelSerializer):
         model = Order
         fields = [
             "id", "paypal_order_id", "created_at", "amount", "currency", "buyer", "payer_id",
-            "payer_country", "ship_country", "seller_protection", "score", "level",
+            "payer_country", "ship_country", "seller_protection", "score", "level", "rules",
         ]
 
     def get_buyer(self, obj):
@@ -49,6 +49,13 @@ class OrderListSerializer(serializers.ModelSerializer):
     def get_level(self, obj):
         a = self._latest(obj)
         return a.level if a else None
+
+    rules = serializers.SerializerMethodField()
+
+    def get_rules(self, obj):
+        """Rule codes behind the latest score, biggest first (uses prefetched findings)."""
+        a = self._latest(obj)
+        return [f.rule for f in sorted(a.findings.all(), key=lambda f: -f.points)] if a else []
 
     def get_seller_protection(self, obj):
         caps = list(obj.captures.all())

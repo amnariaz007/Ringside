@@ -10,22 +10,29 @@ import os
 from pathlib import Path
 
 import dj_database_url
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Local secrets (GEMINI_API_KEY, PayPal sandbox keys, demo login) live in an
+# untracked .env file: backend/.env or the repo root .env. Real environment
+# variables always win.
+load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR.parent / ".env")
 
 
 def env_bool(name: str, default: bool) -> bool:
     return os.environ.get(name, str(default)).lower() in {"1", "true", "yes", "on"}
 
 
-# Render sets RENDER=true. Off Render (laptop, tests) dev defaults are allowed;
-# on Render the app refuses to start with insecure defaults.
-ON_RENDER = env_bool("RENDER", False)
+# Production (VPS or any host): set DJANGO_ENV=production. Off production (laptop,
+# tests) dev defaults are allowed; in production the app refuses to start with them.
+IS_PRODUCTION = os.environ.get("DJANGO_ENV", "").lower() == "production" or env_bool("RENDER", False)
 DEV_SECRET_KEY = "dev-only-insecure-key-change-me"
 DEV_PII_SALT = "payguard-dev-salt"
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", DEV_SECRET_KEY)
-DEBUG = env_bool("DJANGO_DEBUG", not ON_RENDER)
+DEBUG = env_bool("DJANGO_DEBUG", not IS_PRODUCTION)
 ALLOWED_HOSTS = [h for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h]
 if os.environ.get("RENDER_EXTERNAL_HOSTNAME"):
     ALLOWED_HOSTS.append(os.environ["RENDER_EXTERNAL_HOSTNAME"])
@@ -104,7 +111,18 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 50,
+    # Everything needs a logged-in seller. The PayPal webhook and health check are
+    # plain Django views and stay public (the webhook checks PayPal's signature).
+    "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.SessionAuthentication"],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
 }
+
+SESSION_COOKIE_AGE = 60 * 60 * 12  # 12 hours
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o]
+LOGIN_ATTEMPTS_PER_WINDOW = 10
+LOGIN_WINDOW_SECONDS = 15 * 60
 
 # --- PayGuard switches -------------------------------------------------------
 
@@ -132,11 +150,15 @@ PII_HASH_SALT = os.environ.get("PII_HASH_SALT", DEV_PII_SALT)
 # Webhook bodies are small; refuse anything large before it reaches the handler.
 DATA_UPLOAD_MAX_MEMORY_SIZE = 256 * 1024
 
-if not DEBUG:
+if IS_PRODUCTION:
     from django.core.exceptions import ImproperlyConfigured
 
-    if ON_RENDER and (SECRET_KEY == DEV_SECRET_KEY or PII_HASH_SALT == DEV_PII_SALT):
+    if DEBUG:
+        raise ImproperlyConfigured("DJANGO_DEBUG must be off in production.")
+    if SECRET_KEY == DEV_SECRET_KEY or PII_HASH_SALT == DEV_PII_SALT:
         raise ImproperlyConfigured("Set DJANGO_SECRET_KEY and PII_HASH_SALT before deploying.")
-    SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = ON_RENDER
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = IS_PRODUCTION
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_CONTENT_TYPE_NOSNIFF = True

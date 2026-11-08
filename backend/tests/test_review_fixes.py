@@ -140,12 +140,16 @@ def test_blank_buyer_name_falls_back_to_payer_id(client):
 
 
 # Finding 18: production refuses insecure defaults
-def test_render_refuses_dev_secrets():
+def test_production_refuses_dev_secrets_and_debug():
     import subprocess, sys, os
-    env = {**os.environ, "RENDER": "true", "DJANGO_SECRET_KEY": "", "PII_HASH_SALT": ""}
-    env.pop("DJANGO_SECRET_KEY"); env.pop("PII_HASH_SALT"); env.pop("DJANGO_DEBUG", None)
+    # DJANGO_DEBUG and the secrets are set explicitly so a developer's local .env can't mask the check.
+    env = {**os.environ, "DJANGO_ENV": "production", "DJANGO_DEBUG": "false",
+           "DJANGO_SECRET_KEY": "dev-only-insecure-key-change-me", "PII_HASH_SALT": "payguard-dev-salt"}
     proc = subprocess.run([sys.executable, "manage.py", "check"], env=env, capture_output=True, text=True)
     assert proc.returncode != 0 and "DJANGO_SECRET_KEY" in proc.stderr
+    debug_on = subprocess.run([sys.executable, "manage.py", "check"], env={**env, "DJANGO_DEBUG": "true"},
+                              capture_output=True, text=True)
+    assert debug_on.returncode != 0 and "DJANGO_DEBUG" in debug_on.stderr
     env.update(DJANGO_SECRET_KEY="x" * 50, PII_HASH_SALT="y" * 32)
     ok = subprocess.run([sys.executable, "manage.py", "check"], env=env, capture_output=True, text=True)
     assert ok.returncode == 0, ok.stderr

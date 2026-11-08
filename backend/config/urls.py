@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from core import auth_views
 from core.views import AuditEventViewSet, DisputeViewSet, OrderViewSet, dashboard_view
 from disputes import views as copilot_views
 from graph import views as graph_views
@@ -22,6 +23,9 @@ def health(request):
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", health),
+    path("api/auth/me/", auth_views.me),
+    path("api/auth/login/", auth_views.login_view),
+    path("api/auth/logout/", auth_views.logout_view),
     path("api/webhooks/paypal/", paypal_webhook),
     path("api/dashboard/", dashboard_view),
     path("api/graph/rings/", graph_views.rings),
