@@ -24,9 +24,12 @@ def redact(data: dict) -> dict:
     phones are kept only as salted hashes on Buyer; the raw JSON we store for
     debugging must not quietly undo that.
     """
+    from disputes.evidence import redact_text
+
     def walk(node, key=""):
         if isinstance(node, dict):
             return {k: (REDACTED if k in {"email_address", "email", "phone_number", "national_number"}
+                        else redact_text(v) if k == "content" and isinstance(v, str)
                         else walk(v, k)) for k, v in node.items()}
         if isinstance(node, list):
             return [walk(v, key) for v in node]

@@ -48,7 +48,7 @@ export default function Disputes() {
                         </td>
                         <td>
                           {!d.copilot ? <span className="muted small">not started</span>
-                            : d.copilot.status === 'READY' ? (
+                            : d.copilot.status === 'READY' && d.status === 'WAITING_FOR_SELLER_RESPONSE' ? (
                               <span className="pill pill-partial">Ready: {humanize(d.copilot.recommendation)}</span>
                             ) : (
                               <span className="pill pill-none">{humanize(d.copilot.status)}</span>

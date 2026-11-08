@@ -161,7 +161,7 @@ def test_gemini_that_obeys_the_injection_is_rejected(case):
     with mock.patch("ai.gemini.requests.post", return_value=gemini_reply({"draft": obeying, "cited": ["E1"]})):
         out = provider().draft_dispute(**draft_kwargs(case))
     assert out.source == "template"
-    assert any("concedes the claim" in n for n in out.notes)
+    assert any("concedes" in n for n in out.notes)
 
 
 def test_gemini_invented_tracking_number_is_rejected(case):

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { api } from '../api'
+import { api, ApiError } from '../api'
 import type { CopilotAction, CopilotCase, EvidenceItem } from '../api'
 import { Async, Card, PageHeader } from '../components'
 import { dateTime, humanize, money, reasonLabel } from '../format'
@@ -48,6 +48,7 @@ function EvidenceList({ items, cited }: { items: EvidenceItem[]; cited: Set<stri
               {e.title}
               {e.supports === 'fight' && <span className="pill pill-protected inline">supports fighting</span>}
               {e.supports === 'accept' && <span className="pill pill-unprotected inline">weakens a defence</span>}
+              {e.internal && <span className="pill pill-none inline">internal · not sent to PayPal or AI</span>}
             </p>
             <p className="muted small">{e.detail}</p>
           </div>
@@ -64,30 +65,40 @@ function Copilot({ initial }: { initial: CopilotCase }) {
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState<'' | 'submit' | 'regenerate'>('')
   const [error, setError] = useState<string | null>(null)
+  const [offer, setOffer] = useState(initial.offer_amount ?? '')
+  const [confirmRegen, setConfirmRegen] = useState(false)
+  const sendButton = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     setCase(initial)
     setAction(initial.decided_action || initial.recommendation)
     setText(initial.final_text || initial.draft_text)
+    setOffer(initial.offer_amount ?? '')
+    setConfirming(false)
+    setConfirmRegen(false)
+    setError(null)
   }, [initial])
 
   const d = c.dispute
   const due = dueIn(d.seller_response_due_at)
   const cited = useMemo(() => new Set(Array.from(text.matchAll(/\[(E\d+)\]/g), (m) => m[1])), [text])
-  const locked = c.status === 'SUBMITTED' || c.status === 'SUBMITTING'
+  const sent = c.status === 'SUBMITTED' || c.status === 'SUBMITTING'
+  // Read-only once sent, or when PayPal is no longer waiting for the seller.
+  const locked = sent || !d.awaiting_seller || c.status === 'NEEDS_DATA'
   const edited = text.trim() !== c.draft_text.trim()
+  const changedDecision = edited || action !== c.recommendation
 
   async function send() {
     setBusy('submit')
     setError(null)
     try {
-      setCase(await api.submit(d.id, action, text))
+      setCase(await api.submit(d.id, action, text, String(offer)))
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-      try {
-        setCase(await api.copilot(d.id)) // show FAILED state and keep the seller's text
-      } catch {
-        /* keep current view */
+      // A 502 carries the FAILED case (with PayPal's error); show it and keep the seller's text.
+      if (e instanceof ApiError && e.status === 502 && e.body && typeof e.body === 'object' && 'status' in e.body) {
+        setCase(e.body as CopilotCase)
+      } else {
+        setError(e instanceof Error ? e.message : String(e))
       }
     } finally {
       setBusy('')
@@ -96,6 +107,7 @@ function Copilot({ initial }: { initial: CopilotCase }) {
   }
 
   async function regenerate() {
+    setConfirmRegen(false)
     setBusy('regenerate')
     setError(null)
     try {
@@ -123,12 +135,12 @@ function Copilot({ initial }: { initial: CopilotCase }) {
         }
       >
         <span className={`deadline-pill ${due.urgent ? 'deadline-urgent' : ''}`}>
-          {locked ? `PayPal status: ${humanize(d.status)}` : due.text}
+          {locked ? `PayPal status: ${humanize(d.status)}${d.outcome ? ` · ${humanize(d.outcome)}` : ''}` : due.text}
         </span>
       </PageHeader>
 
       {c.status === 'SUBMITTED' && (
-        <div className="notice notice-success" role="status">
+        <div className="notice notice-success" role="status" tabIndex={-1} ref={(el) => el?.focus()}>
           <strong>Sent to PayPal</strong> {c.submitted_at && <>on {dateTime(c.submitted_at)}</>}: {ACTION_LABEL[c.decided_action || 'FIGHT'].toLowerCase()}.
           PayPal now shows this dispute as <strong>{humanize(d.status).toLowerCase()}</strong>
           {d.outcome && <> ({humanize(d.outcome).toLowerCase()})</>}.
@@ -140,9 +152,22 @@ function Copilot({ initial }: { initial: CopilotCase }) {
         </div>
       )}
       {error && c.status !== 'FAILED' && <div className="notice notice-error" role="alert">{error}</div>}
+      {c.status === 'NEEDS_DATA' && (
+        <div className="notice" role="status">
+          This dispute isn't linked to an order Ringside knows yet, so there's no evidence to work from.
+          The copilot will prepare it automatically when PayPal sends the order details.
+        </div>
+      )}
+      {!sent && !d.awaiting_seller && c.status !== 'NEEDS_DATA' && (
+        <div className="notice" role="status">
+          PayPal isn't waiting for your response on this dispute (status: {humanize(d.status).toLowerCase()}), so
+          there's nothing to send.
+        </div>
+      )}
 
       <div className="grid-detail">
         <div className="stack">
+          {c.status !== 'NEEDS_DATA' && <>
           <Card className={`verdict verdict-${c.recommendation === 'FIGHT' ? 'low' : c.recommendation === 'ACCEPT' ? 'high' : 'medium'}`}>
             <div className="verdict-head">
               <span className="muted small">Ringside recommends</span>
@@ -165,7 +190,7 @@ function Copilot({ initial }: { initial: CopilotCase }) {
           </Card>
 
           <Card
-            title={locked ? 'What you sent to PayPal' : 'Your response to PayPal'}
+            title={sent ? 'What you sent to PayPal' : locked ? 'Prepared response (not sent)' : 'Your response to PayPal'}
             action={
               <span className="muted small">
                 {c.draft_source === 'template' ? 'Draft built from evidence' : `AI draft · ${c.draft_source}`}
@@ -181,7 +206,7 @@ function Copilot({ initial }: { initial: CopilotCase }) {
               </div>
             )}
             {locked ? (
-              <CitedText text={c.final_text} />
+              <CitedText text={sent ? c.final_text : c.draft_text} />
             ) : (
               <>
                 <label className="sr-only" htmlFor="draft">Response text</label>
@@ -190,6 +215,7 @@ function Copilot({ initial }: { initial: CopilotCase }) {
                   className="draft"
                   value={text}
                   onChange={(e) => setText(e.target.value)}
+                  readOnly={!!busy || confirming}
                   rows={9}
                   maxLength={2000}
                 />
@@ -197,22 +223,27 @@ function Copilot({ initial }: { initial: CopilotCase }) {
                   {text.length}/2000 · citations like [E3] are for your review and are removed before sending.
                 </p>
                 <div className="decision">
-                  <div className="segmented" role="radiogroup" aria-label="Your decision">
+                  <fieldset className="segmented radio-segmented" disabled={!!busy || confirming}>
+                    <legend className="sr-only">Your decision</legend>
                     {(Object.keys(ACTION_SHORT) as CopilotAction[])
                       .filter((a) => a !== 'PARTIAL_REFUND' || c.offer_amount)
                       .map((a) => (
-                        <button
-                          key={a}
-                          role="radio"
-                          aria-checked={action === a}
-                          className={action === a ? 'active' : ''}
-                          onClick={() => setAction(a)}
-                        >
+                        <label key={a} className={action === a ? 'active' : ''}>
+                          <input type="radio" name="decision" value={a} checked={action === a}
+                            onChange={() => setAction(a)} />
                           {ACTION_SHORT[a]}
                           {a === c.recommendation && ' ✓'}
-                        </button>
+                        </label>
                       ))}
-                  </div>
+                  </fieldset>
+                  {action === 'PARTIAL_REFUND' && (
+                    <label className="offer-input">
+                      Offer amount ({d.currency})
+                      <input type="number" min="0" step={['JPY', 'HUF', 'TWD'].includes(d.currency) ? '1' : '0.01'}
+                        value={offer} onChange={(e) => setOffer(e.target.value)} readOnly={!!busy || confirming} />
+                      <span className="muted small">must be less than {money(d.amount, d.currency)}; the buyer has to agree</span>
+                    </label>
+                  )}
                   {action !== c.recommendation && (
                     <p className="warn small">
                       You're choosing differently from the recommendation. Make sure the text matches your decision.
@@ -221,26 +252,49 @@ function Copilot({ initial }: { initial: CopilotCase }) {
                 </div>
 
                 {!confirming ? (
+                  <>
                   <div className="button-row">
-                    <button className="button button-primary" disabled={!!busy || text.trim().length < 20}
-                      onClick={() => setConfirming(true)}>
+                    <button ref={sendButton} className="button button-primary"
+                      disabled={!!busy || text.trim().length < 20} onClick={() => setConfirming(true)}>
                       Review and send to PayPal
                     </button>
-                    <button className="button" disabled={!!busy} onClick={regenerate}>
+                    <button className="button" disabled={!!busy}
+                      onClick={() => (changedDecision ? setConfirmRegen(true) : regenerate())}>
                       {busy === 'regenerate' ? 'Regenerating…' : 'Regenerate draft'}
                     </button>
                   </div>
+                  {confirmRegen && (
+                    <div className="confirm" role="alertdialog" aria-labelledby="regen-title"
+                      onKeyDown={(e) => e.key === 'Escape' && setConfirmRegen(false)}>
+                      <p id="regen-title">Regenerating replaces your edits and decision with a fresh draft.</p>
+                      <div className="button-row">
+                        <button className="button button-primary" onClick={regenerate} autoFocus>Replace my edits</button>
+                        <button className="button" onClick={() => setConfirmRegen(false)}>Keep my edits</button>
+                      </div>
+                    </div>
+                  )}
+                  </>
                 ) : (
-                  <div className="confirm" role="alertdialog" aria-labelledby="confirm-title">
+                  <div className="confirm" role="alertdialog" aria-labelledby="confirm-title"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape' && busy !== 'submit') {
+                        setConfirming(false)
+                        requestAnimationFrame(() => sendButton.current?.focus())
+                      }
+                    }}>
                     <p id="confirm-title">
-                      <strong>Send "{ACTION_LABEL[action]}" to PayPal?</strong> PayPal receives your text
+                      <strong>Send "{ACTION_LABEL[action]}"{action === 'PARTIAL_REFUND' && ` of ${money(offer || 0, d.currency)}`} to PayPal?</strong>{' '}
+                      PayPal receives your text
                       {action === 'FIGHT' && ' and the tracking number as proof of delivery'}. This can't be undone.
                     </p>
                     <div className="button-row">
                       <button className="button button-primary" disabled={busy === 'submit'} onClick={send} autoFocus>
                         {busy === 'submit' ? 'Sending…' : 'Yes, send to PayPal'}
                       </button>
-                      <button className="button" disabled={busy === 'submit'} onClick={() => setConfirming(false)}>
+                      <button className="button" disabled={busy === 'submit'} onClick={() => {
+                        setConfirming(false)
+                        requestAnimationFrame(() => sendButton.current?.focus())
+                      }}>
                         Cancel
                       </button>
                     </div>
@@ -249,6 +303,7 @@ function Copilot({ initial }: { initial: CopilotCase }) {
               </>
             )}
           </Card>
+          </>}
         </div>
 
         <div className="stack">

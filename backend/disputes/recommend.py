@@ -18,6 +18,18 @@ INR = "MERCHANDISE_OR_SERVICE_NOT_RECEIVED"
 SNAD = "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED"
 UNAUTHORISED = "UNAUTHORISED"
 PARTIAL_REFUND_SHARE = Decimal("0.30")
+# PayPal rejects decimals for these currencies (DECIMALS_NOT_SUPPORTED).
+ZERO_DECIMAL_CURRENCIES = {"JPY", "HUF", "TWD"}
+
+
+def minor_unit(currency: str) -> Decimal:
+    return Decimal("1") if currency.upper() in ZERO_DECIMAL_CURRENCIES else Decimal("0.01")
+
+
+def suggested_offer(amount: Decimal, currency: str) -> Decimal | None:
+    """30% of the disputed amount in the currency's smallest unit; None if that isn't a real partial offer."""
+    offer = (amount * PARTIAL_REFUND_SHARE).quantize(minor_unit(currency), ROUND_HALF_UP)
+    return offer if Decimal("0") < offer < amount else None
 
 
 @dataclass
@@ -32,7 +44,7 @@ def _find(evidence: list[dict], kind: str) -> dict | None:
     return next((e for e in evidence if e["kind"] == kind), None)
 
 
-def decide(reason: str, amount: Decimal, evidence: list[dict]) -> Recommendation:
+def decide(reason: str, amount: Decimal, evidence: list[dict], currency: str = "USD") -> Recommendation:
     tracking = _find(evidence, "tracking")
     delivery = _find(evidence, "delivery")
     protection = _find(evidence, "seller_protection")
@@ -77,7 +89,10 @@ def decide(reason: str, amount: Decimal, evidence: list[dict]) -> Recommendation
                 "Accepting now avoids a claim escalation.", tracking)])
 
     if reason == SNAD:
-        offer = (amount * PARTIAL_REFUND_SHARE).quantize(Decimal("0.01"), ROUND_HALF_UP)
+        offer = suggested_offer(amount, currency)
+        if offer is None:
+            return Recommendation("ACCEPT", "low", [
+                why("The amount is too small for a meaningful partial refund; accepting is simplest.")])
         return Recommendation("PARTIAL_REFUND", "medium", [
             why(f"For 'not as described' claims, a partial refund ({int(PARTIAL_REFUND_SHARE * 100)}%) often settles "
                 "the case faster than a return. The buyer must agree to it.")], offer_amount=offer)

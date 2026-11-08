@@ -163,9 +163,85 @@ Phone and email-pattern nodes only appear when shared, and raw emails and phones
 
 The sidebar badge shows `PayPal: mock · AI: template`, so simulated mode is always labelled honestly. Dark and light themes follow the system setting.
 
-### Not built yet
+### Not built yet (as of the end of day 2)
 
-- Dispute copilot (evidence, draft, recommendation, approve and submit)
-- Real LLM provider
-- Render deploy and Workflow, login, git and LICENSE
+- Dispute copilot, real LLM provider, git and LICENSE: **done on day 3**, see below
+- Render deploy and Workflow, login
 - Two-seller network
+
+---
+
+## Day 3 (8 Nov, evening): dispute copilot, Gemini, git and MIT ✅
+
+### Repository
+
+- `git init` on `main`, MIT [LICENSE](../LICENSE) (copyright amnariaz007), 2 commits so far. `docs/COMPETITIVE_STRATEGY.md` is git-ignored because it names competitors.
+- **Not pushed yet.** The GitHub CLI isn't installed. To publish:
+  `git remote add origin https://github.com/<you>/ringside.git && git push -u origin main`, then tick the licence in the repo's About section (a submission rule).
+
+### How the copilot works
+
+```
+CUSTOMER.DISPUTE.CREATED webhook
+  └─ prepare(dispute)            disputes/service.py (inline now; Render Workflow next)
+       1. step_gather            disputes/evidence.py    → E1..En evidence + B1.. buyer messages (untrusted)
+       2. step_recommend         disputes/recommend.py   → FIGHT / ACCEPT / PARTIAL_REFUND (rules, not AI)
+       3. step_draft             ai provider + disputes/guard.py → draft that passes every check
+     → case READY (nothing has been sent)
+
+Seller opens /disputes/:id → reviews evidence, edits the text, picks an action
+  → "Review and send" → inline confirm → POST /copilot/submit/ {action, text, confirm: true}
+       FIGHT          → provide-evidence (PROOF_OF_FULFILLMENT with carrier + tracking; multipart)
+       ACCEPT         → accept-claim
+       PARTIAL_REFUND → make-offer (REFUND, the 30% offer)
+     → re-fetch the dispute from PayPal → case SUBMITTED; every step in the audit log
+```
+
+### Evidence (`disputes/evidence.py`)
+
+| Id | Kind | Source |
+|---|---|---|
+| E1 | Order | Order id, amount, date |
+| E2 | Seller Protection | Capture's `seller_protection.status` and categories |
+| E3 | Tracking | `Shipment` carrier and tracking number, and whether it went to the PayPal address (or "no tracking recorded", which weakens a defence) |
+| E4 | Delivery | Carrier delivery date |
+| E5 | Buyer history | Earlier orders from the same payer with no dispute or refund ("CE 3.0-style"; not the Visa rule itself) |
+| E6, E7 | Risk / ring | Checkout risk score and linked accounts: **context only** |
+| B1… | Buyer messages | Shown in a quarantined box; never evidence, never instructions |
+
+### Recommendation rules (`disputes/recommend.py`)
+
+| Situation | Recommendation |
+|---|---|
+| Item not received or unauthorised, delivered to the PayPal address with tracking | **Fight**: high confidence if Seller Protection covers it, medium if not |
+| Delivered, but to a different address | Fight, low confidence |
+| Shipped with tracking, delivery not confirmed | Fight, low confidence (send the tracking) |
+| No tracking at all | **Accept** (PayPal will side with the buyer; avoids escalation) |
+| Not as described | **Partial refund** of 30% (the buyer must agree) |
+| Any other reason | Accept, low confidence: "review it yourself" |
+
+Two hard rules: a ring link or risk score **never** produces Fight on its own, and buyer messages are never an input.
+
+### AI layer (`ai/`)
+
+| Piece | What it does |
+|---|---|
+| `TemplateProvider.draft_dispute` | Joins the evidence sentences word for word, each with its citation. Can't invent anything; always passes the guard |
+| `GeminiProvider` | Gemini REST API (`x-goog-api-key` header, JSON output with a schema, temperature 0.2). Tasks: risk explanation, ring summary, dispute draft |
+| `AICache` | Same model + task + input returns the stored answer, so free-tier rate limits can't break the demo |
+| `WithFallback` | Any error, 429, timeout or failed check falls back to the template; the reasons go to `guard_notes` and the audit log |
+| `disputes/guard.py` | Rejects drafts that cite unknown evidence, cite buyer messages, contain a long number (tracking, phone, ID) that isn't in the evidence, concede while the decision is Fight, echo "ignore previous instructions", or fall outside 60–2000 characters |
+
+Enable Gemini: `AI_PROVIDER=gemini GEMINI_API_KEY=... python manage.py runserver` (free key from Google AI Studio).
+
+### API
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/disputes/<id>/copilot/` | Case: evidence, buyer messages, recommendation, reasons, draft, status (prepared on first view if needed) |
+| `POST /api/disputes/<id>/copilot/regenerate/` | Run the prepare steps again (blocked after submission) |
+| `POST /api/disputes/<id>/copilot/submit/` | `{action, text, confirm: true}`. 400 without `confirm`, 409 for the wrong state, 502 if PayPal refuses (case → FAILED, can retry) |
+
+### UI: `/disputes/:id`
+
+Rules-based recommendation with evidence chips · an editable draft (source labelled "Draft built from evidence" or "AI draft · gemini:…") · a note when an AI draft was rejected · fight / accept / partial selector with a warning when it differs from the recommendation · an inline confirm step ("This can't be undone") · evidence list that highlights cited items · quarantined buyer message · after sending: "Sent to PayPal", the PayPal status and the exact text sent.

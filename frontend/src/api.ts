@@ -67,13 +67,15 @@ export interface EvidenceItem {
   title: string
   detail: string
   supports: 'fight' | 'accept' | ''
+  internal: boolean
   data: Record<string, unknown>
 }
 
 export interface CopilotCase {
   id: number
-  status: 'PREPARING' | 'READY' | 'SUBMITTING' | 'SUBMITTED' | 'FAILED'
+  status: 'NEEDS_DATA' | 'PREPARING' | 'READY' | 'SUBMITTING' | 'SUBMITTED' | 'FAILED'
   dispute: {
+    awaiting_seller: boolean
     id: number
     paypal_dispute_id: string
     reason: string
@@ -211,9 +213,11 @@ export interface Page<T> {
 
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  body: unknown
+  constructor(status: number, message: string, body?: unknown) {
     super(message)
     this.status = status
+    this.body = body
   }
 }
 
@@ -238,12 +242,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
   if (!res.ok) {
     let detail = res.statusText
+    let body: unknown
     try {
-      detail = ((await res.json()) as { detail?: string }).detail ?? detail
+      body = await res.json()
+      detail = (body as { detail?: string }).detail ?? detail
     } catch {
       /* body wasn't JSON */
     }
-    throw new ApiError(res.status, detail)
+    throw new ApiError(res.status, detail, body)
   }
   return res.json() as Promise<T>
 }
@@ -258,7 +264,9 @@ export const api = {
   buyerGraph: (payerId: string) => get<BuyerGraph>(`/graph/buyers/${encodeURIComponent(payerId)}/`),
   copilot: (disputeId: string | number) => get<CopilotCase>(`/disputes/${disputeId}/copilot/`),
   regenerate: (disputeId: string | number) => post<CopilotCase>(`/disputes/${disputeId}/copilot/regenerate/`),
-  submit: (disputeId: string | number, action: CopilotAction, text: string) =>
-    post<CopilotCase>(`/disputes/${disputeId}/copilot/submit/`, { action, text, confirm: true }),
+  submit: (disputeId: string | number, action: CopilotAction, text: string, offerAmount?: string) =>
+    post<CopilotCase>(`/disputes/${disputeId}/copilot/submit/`, {
+      action, text, confirm: true, ...(action === 'PARTIAL_REFUND' ? { offer_amount: offerAmount } : {}),
+    }),
   audit: (actor?: string) => get<Page<AuditRow>>(`/audit/?limit=200${actor ? `&actor=${actor}` : ''}`),
 }

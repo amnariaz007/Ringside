@@ -92,7 +92,8 @@ class TemplateProvider:
     def draft_dispute(self, *, action: str, reason: str, evidence: list[dict], buyer_messages: list[dict],
                       offer_amount: Decimal | None, currency: str) -> AIText:
         """Assembles evidence sentences verbatim, each with its citation. Can't invent a fact."""
-        by_kind = {e["kind"]: e for e in evidence}
+        from disputes.guard import shareable
+        by_kind = {e["kind"]: e for e in shareable(evidence)}
         order = by_kind.get("order")
         order_ref = f"PayPal order {order['data']['paypal_order_id']}" if order else "this order"
         claim = REASON_LABELS.get(reason, reason.replace("_", " ").lower())
@@ -109,14 +110,17 @@ class TemplateProvider:
         if action == "FIGHT":
             lines.append(f"Hello, we're responding to the {claim} claim on {order_ref}.")
             for kind in ("tracking", "delivery", "seller_protection", "buyer_history"):
-                if kind != "seller_protection" or by_kind.get(kind, {}).get("supports") == "fight":
+                # Only evidence that actually supports the defence goes into a FIGHT response.
+                if kind == "tracking" or by_kind.get(kind, {}).get("supports") == "fight":
                     use(kind)
             lines.append("Based on this shipping and delivery record, we ask PayPal to close the case in the "
                          "seller's favour. Thank you for reviewing it.")
         elif action == "PARTIAL_REFUND":
             amount = f"{currency} {offer_amount}" if offer_amount is not None else "a partial refund"
-            lines.append(f"Hello, we're sorry the item on {order_ref} didn't meet expectations.")
-            use("order")
+            ref = f" [{order['id']}]" if order else ""
+            lines.append(f"Hello, we're sorry the item on {order_ref}{ref} didn't meet expectations.")
+            if order:
+                cited.append(order["id"])
             lines.append(f"To settle this quickly, we'd like to offer a partial refund of {amount}, "
                          "and the buyer can keep the item.")
         else:

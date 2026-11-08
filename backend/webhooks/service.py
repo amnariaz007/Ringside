@@ -117,7 +117,9 @@ def _process(event: dict, client) -> str:
         "paypal", "dispute.created" if created else "dispute.updated", obj=dispute,
         paypal_id=dispute.paypal_dispute_id, status=dispute.status, reason=dispute.reason,
     )
-    if event_type == "CUSTOMER.DISPUTE.CREATED" and dispute.status == "WAITING_FOR_SELLER_RESPONSE":
+    waiting = dispute.status == "WAITING_FOR_SELLER_RESPONSE"
+    needs_data = getattr(getattr(dispute, "case", None), "status", "") == "NEEDS_DATA" and dispute.order_id
+    if waiting and (event_type == "CUSTOMER.DISPUTE.CREATED" or needs_data):
         _start_copilot(dispute)
     return f"dispute {dispute.paypal_dispute_id} {dispute.status}"
 
@@ -130,7 +132,7 @@ def _start_copilot(dispute) -> None:
 
     if settings.COPILOT_RUNNER == "inline":
         try:
-            copilot.prepare(dispute)
+            copilot.prepare(dispute, force=getattr(getattr(dispute, "case", None), "status", "") == "NEEDS_DATA")
         except Exception as exc:  # the copilot must never make PayPal retry a good webhook
             record("system", "copilot.prepare_failed", obj=dispute, paypal_id=dispute.paypal_dispute_id,
                    error=str(exc)[:500])

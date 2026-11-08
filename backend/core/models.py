@@ -13,6 +13,7 @@ class Seller(models.Model):
     name = models.CharField(max_length=200)
     paypal_merchant_id = models.CharField(max_length=64, unique=True)
     currency = models.CharField(max_length=3, default="USD")
+    timezone = models.CharField(max_length=40, default="UTC")  # IANA name, e.g. America/Chicago
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

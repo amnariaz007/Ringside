@@ -114,3 +114,70 @@ Four reviewers (backend correctness, API contract, frontend UX, privacy/security
 - **No login yet.** Every API endpoint is public. It must be added before deploying (planned for the deploy day).
 - **The mock PayPal store (`MockPayPalObject`) still holds full PayPal payloads**, because it stands in for PayPal's own database. It's unused in sandbox mode.
 - **Rate limiting on the webhook** is not done. Render's edge plus the 256 KB limit is the current protection.
+
+---
+
+## Day 3 (8 Nov, evening): dispute copilot, Gemini, git and MIT
+
+### Automated checks
+
+| Check | Result |
+|---|---|
+| `cd backend && .venv/bin/pytest` | **160 passed**: 91 from day 2, 34 copilot tests, 35 regression tests from the copilot review |
+| `cd frontend && npm run build` / `npm run lint` | Build passes; 0 lint errors |
+| Gemini paths | Tested with mocked HTTP: a valid draft is used; an injection-obeying draft, an invented tracking number, a 429 and a network error all **fall back to the template** with the reason recorded; caching; the key goes in a header, never the URL. **Not yet run against the real Gemini API (no key).** |
+
+### Checked in a real browser (Chrome, dark mode, mock PayPal)
+
+| Flow | Result |
+|---|---|
+| Disputes list | The open dispute shows "Ready: Fight"; the resolved one shows no Ready badge |
+| Copilot page | Rules-based recommendation with evidence chips; editable draft; 5 evidence items; buyer message in a quarantined box |
+| Approve and send | Inline confirm → "Sent to PayPal" → mock PayPal status **Under review**; the text PayPal received has no `[E#]` citations |
+| Partial refund | The option is always offered, with the suggested $20.15 (30%) offer and a "buyer has to agree" note |
+| Regenerate after changes | Asks "Replace my edits / Keep my edits" first |
+| Resolved dispute | Read-only, with the PayPal status and outcome; risk and ring evidence labelled "internal · not sent to PayPal or AI" |
+
+### Independent code review of the copilot commit
+
+Five reviewers (guardrails, workflow correctness, evidence and rules, frontend, security and privacy) reported 34 issues, and three skeptics tried to refute each one. **23 were confirmed; all are fixed.** Each bypass the reviewers demonstrated is now a test in `backend/tests/test_copilot_review_fixes.py`.
+
+**The safety check (guard) was rebuilt** rather than patched. Phrase lists leak, so the checks are now structural:
+
+| # | Was possible | Now |
+|---|---|---|
+| 1 | "We'll refund the buyer the entire payment" passed in a Fight draft | Any refund, accept, reimburse or concede-style sentence is rejected unless it's copied word for word from the evidence |
+| 2–3 | Invented numbers with `.`, `,` or `/`, any amount or date, or digits that happened to appear inside a real tracking number | Every number token must **exactly** match a number from the evidence; number words ("twelve") are rejected too |
+| 4 | `[E1, E9]`, `(B1)` and other citation forms | Every E/B id in any form is checked; only `[E3]` is accepted, counted per occurrence |
+| 5 | A partial-refund note promising a different amount, or a full refund | It must state the exact offer and no other amount |
+| 6 | The ring summary inflating "USD 1,250.00" | The same number check is used for short AI texts |
+| 23 | The internal risk score or ring links cited in text sent to PayPal | Risk and ring evidence is never given to the AI and can't be cited |
+| 22 | Phone numbers and emails in buyer messages sent to Gemini | Masked before storage and before any AI call |
+
+**Workflow and data:**
+
+| # | Severity | Fix |
+|---|---|---|
+| 7 | High | Any error during the PayPal call (timeout, bad JSON) → FAILED, never stuck in SUBMITTING. A retry **checks PayPal first** and doesn't send twice |
+| 8 | High | SUBMITTED is saved as soon as PayPal accepts; a failed status refresh is only logged |
+| 13 | High | Buyer history and earlier lost disputes only count **this shop**; lost disputes are internal context, never sent |
+| 14 | High | Seller Protection only counts as covering the claim if its categories include this dispute's reason |
+| 18 | High | A failed send shows the FAILED state with the seller's text kept (it used to say "Bad Gateway" and silently re-draft) |
+| 9 | Medium | Viewing a FAILED case no longer re-drafts it |
+| 10 | Medium | Locking: a regenerate can't overwrite a submission in progress |
+| 11 | Medium | A dispute with no known order → "needs data", prepared again when the order arrives |
+| 15 | Medium | Buyer history counts only completed, delivered orders, worded exactly as checked |
+| 16 | Medium | Evidence dates are in the seller's time zone (Juniper Lane: America/Chicago) |
+| 19 | Medium | Disputes PayPal isn't waiting on are read-only |
+| 20 | Medium | Regenerate asks before replacing edits; inputs lock while busy |
+| 12, 17 | Low | Offers use the currency's minor unit (no decimals for JPY, HUF, TWD); the seller can set their own offer amount (validated) |
+| 21 | Low | Native radio buttons; Escape cancels the confirm step; focus returns to the send button |
+
+**Rejected by the skeptics:** narrow injection-echo regex (the structural checks cover it); carrier enum mapping; tracking without delivery recommending Fight (intended: send the tracking); several UI edge cases; audit storing draft text; emails or URLs in AI drafts; AI cache lifetime; GET with side effects.
+
+### Still open
+
+- **Real Gemini output is unverified**; it needs a key. The fallback guarantees the demo works without one.
+- **Sandbox Disputes API calls are unverified**; they need credentials, expected tonight. The request shapes are unit-tested.
+- **The safety check is a strong backstop, not a proof.** A model could still write misleading prose that uses only grounded numbers and no concession words. The seller's review and approval remain the final control, by design.
+- **No login yet; the copilot GET prepares a case as a side effect.** Both are planned for the deploy day.

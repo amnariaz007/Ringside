@@ -270,6 +270,17 @@ a.list-row:hover { background: var(--surface-2); text-decoration: none; }
   border: 1px solid var(--border); border-radius: 8px; padding: 12px; resize: vertical;
 }
 .draft:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+.radio-segmented { border: 1px solid var(--border); margin: 0; min-width: 0; width: fit-content; }
+.radio-segmented label { padding: 6px 12px; border-radius: 6px; color: var(--text-2); font-weight: 500; cursor: pointer; }
+.radio-segmented label.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.radio-segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.radio-segmented label:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 1px; }
+.radio-segmented:disabled { opacity: 0.6; }
+.offer-input { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 500; max-width: 260px; }
+.offer-input input {
+  font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text);
+}
 .decision { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
 .warn { color: var(--medium); }
 .button-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }

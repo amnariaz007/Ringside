@@ -26,6 +26,7 @@ class CaseSerializer(serializers.ModelSerializer):
             "amount": str(d.amount), "currency": d.currency, "outcome": d.outcome,
             "seller_response_due_at": d.seller_response_due_at, "created_at": d.created_at,
             "order_id": d.order_id, "paypal_order_id": d.order.paypal_order_id if d.order else "",
+            "awaiting_seller": d.status == "WAITING_FOR_SELLER_RESPONSE",
             "buyer": str(d.order.buyer) if d.order else "", "payer_id": d.order.buyer.payer_id if d.order else "",
         }
 
@@ -66,7 +67,8 @@ def case_submit(request, pk: int):
         return Response({"detail": "confirm must be true: nothing is sent to PayPal without explicit approval"},
                         status=400)
     try:
-        case = service.submit(case, action=str(request.data.get("action", "")), text=str(request.data.get("text", "")))
+        case = service.submit(case, action=str(request.data.get("action", "")), text=str(request.data.get("text", "")),
+                              offer_amount=request.data.get("offer_amount"))
     except service.CopilotError as exc:
         return Response({"detail": str(exc)}, status=409)
     return Response(CaseSerializer(case).data, status=200 if case.status == "SUBMITTED" else 502)

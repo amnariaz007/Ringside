@@ -12,6 +12,7 @@ class DisputeCase(models.Model):
     """
 
     STATUS = [
+        ("NEEDS_DATA", "Waiting for order data"),
         ("PREPARING", "Preparing"),
         ("READY", "Ready for seller review"),
         ("SUBMITTING", "Submitting to PayPal"),

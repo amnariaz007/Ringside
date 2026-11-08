@@ -58,7 +58,7 @@ RING_ACCOUNTS = [
 
 def get_or_create_seller() -> Seller:
     seller, _ = Seller.objects.get_or_create(
-        paypal_merchant_id=MERCHANT_ID, defaults={"name": "Juniper Lane Apparel", "currency": "USD"}
+        paypal_merchant_id=MERCHANT_ID, defaults={"name": "Juniper Lane Apparel", "currency": "USD", "timezone": "America/Chicago"}
     )
     return seller
 
