@@ -175,7 +175,8 @@ export default function Rings() {
   return (
     <>
       <PageHeader
-        title="Fraud rings"
+        eyebrow="Fraud rings"
+        title="Accounts that work together"
         subtitle="Buyers joined by a shared shipping address or phone. Email look-alikes are shown but never link accounts on their own."
       />
       <div className="grid-rings">

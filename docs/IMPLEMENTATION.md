@@ -245,3 +245,18 @@ Enable Gemini: `AI_PROVIDER=gemini GEMINI_API_KEY=... python manage.py runserver
 ### UI: `/disputes/:id`
 
 Rules-based recommendation with evidence chips · an editable draft (source labelled "Draft built from evidence" or "AI draft · gemini:…") · a note when an AI draft was rejected · fight / accept / partial selector with a warning when it differs from the recommendation · an inline confirm step ("This can't be undone") · evidence list that highlights cited items · quarantined buyer message · after sending: "Sent to PayPal", the PayPal status and the exact text sent.
+
+---
+
+## Day 3b (8 Nov, night): login, Ledger redesign, AG Grid ✅
+
+| Area | What changed |
+|---|---|
+| Login | `core/auth_views.py`: `GET /api/auth/me/` (also sets the CSRF cookie), `POST /api/auth/login/`, `POST /api/auth/logout/`. 10 failed attempts per IP per 15 minutes → 429. DRF requires a session on every API endpoint; `/api/health/` and `/api/webhooks/paypal/` stay public |
+| Demo user | `python manage.py ensure_demo_user` reads `DEMO_USERNAME` / `DEMO_PASSWORD` (12+ characters) from `.env` |
+| `.env` | Loaded automatically from `backend/.env` or the repo root (`python-dotenv`); real environment variables win |
+| Theme | `frontend/src/index.css` rewritten as "Ledger": Fraunces, Inter and IBM Plex Mono (self-hosted via Fontsource), navy sidebar with icons and an open-disputes count, **content centred** in a 1160 px column |
+| Ring motif | `visuals.tsx`: `RiskRing` gauge (tables, lists, order verdict), `RingsArt` backdrop (overview hero, login) |
+| Overview | Navy hero with a plain-English summary of what needs attention, quick actions, and a ledger row of figures |
+| AG Grid | `grid.tsx` registers Community modules once and defines `ledgerTheme` (`themeQuartz.withParams`). Orders: risk ring, buyer, "Why" chips, route, protection, amount; quick search; level filter; CSV export; pagination. Disputes: copilot state and deadline cells. Audit: actor filter, search, CSV export |
+| Performance | Orders, Disputes, Audit and Rings load on demand; the main bundle is 345 kB |

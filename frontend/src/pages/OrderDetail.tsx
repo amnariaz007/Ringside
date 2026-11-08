@@ -1,7 +1,8 @@
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
 import type { Finding } from '../api'
-import { Async, Card, PageHeader, ProtectionBadge, RiskBadge, ScoreMeter } from '../components'
+import { Async, Card, PageHeader, ProtectionBadge, ScoreMeter } from '../components'
+import { RiskRing } from '../visuals'
 import { dateTime, humanize, money, reasonLabel } from '../format'
 import { useLoad } from '../hooks'
 
@@ -43,6 +44,7 @@ export default function OrderDetail() {
         return (
           <>
             <PageHeader
+              eyebrow="Order"
               title={`${money(o.amount, o.currency)} from ${o.buyer}`}
               subtitle={<>PayPal order <code>{o.paypal_order_id}</code> · {dateTime(o.created_at)}</>}
             >
@@ -54,13 +56,19 @@ export default function OrderDetail() {
                 {a && (
                   <Card className={`verdict verdict-${a.level}`}>
                     <div className="verdict-head">
-                      <RiskBadge level={a.level} score={a.score} />
+                      <span className="eyebrow">Risk verdict</span>
                       <span className="muted small">
                         rules engine {a.engine_version} · text by {a.explanation_source}
                       </span>
                     </div>
+                    <div className="verdict-body">
+                      <RiskRing score={a.score} level={a.level} size={88} />
+                      <div className="grow">
+                        <p className={`level-word level-${a.level}`} style={{ fontSize: 14 }}>{a.level} risk</p>
+                        <p className="verdict-text">{a.explanation}</p>
+                      </div>
+                    </div>
                     <ScoreMeter score={a.score} level={a.level} />
-                    <p className="verdict-text">{a.explanation}</p>
                   </Card>
                 )}
 

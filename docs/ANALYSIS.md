@@ -134,3 +134,17 @@ Two research runs finished today. The full strategy is in [COMPETITIVE_STRATEGY.
 3. **10 Nov:** Render Workflow, deployment, and real sandbox calls if access exists.
 4. **11 Nov:** the two-seller network (the clearest innovation), the ring-replay hook, README.
 5. **12 Nov:** video and submission.
+
+---
+
+## 8. Day 3 decisions (8 Nov, night)
+
+| Decision | Why |
+|---|---|
+| **No Render.** Deploy to a VPS with Docker | Render is optional; its prize is credits only. The rule is a hosted demo or full setup steps, and a VPS satisfies it. The Render Workflow plan is dropped; the copilot keeps its step functions and runs inline |
+| **Sponsor target: AG Grid** | Only AG Grid, APIMatic, Bryntum and Channel3 pay cash; one sponsor prize per project. AG Grid's is the largest ($5k / $2k / 3 × $1k) and fits a data-heavy seller tool. Orders, Disputes and the Audit log are now AG Grid (Community, MIT): custom risk-ring cells, reason chips, quick search, filters, pagination, CSV export. **Tick AG Grid on the Devpost form** |
+| **"Ledger" visual identity** | Judges score Design ("a complete, coherent product"), and most entries look like dark AI dashboards. Warm paper, navy, serif headlines, tabular figures, and the logo's ring reused as the risk-score gauge |
+| **One demo seller login** | Session login with CSRF protection and a per-IP attempt limit; every API endpoint needs it except health and the signed PayPal webhook. The credentials live in `.env` (git-ignored) and go in the Devpost text |
+| **Production guard for any host** | `DJANGO_ENV=production` refuses to start with debug on or with development secrets |
+
+**Prize plan now:** one main prize or honourable mention (Overall, Most Impactful, Most Creative, or Best Use of PayPal + AI), plus **AG Grid** as the sponsor prize.

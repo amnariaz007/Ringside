@@ -125,6 +125,7 @@ function Copilot({ initial }: { initial: CopilotCase }) {
   return (
     <>
       <PageHeader
+        eyebrow="Dispute copilot"
         title={`${reasonLabel(d.reason)} · ${money(d.amount, d.currency)}`}
         subtitle={
           <>

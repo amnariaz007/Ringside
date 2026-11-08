@@ -83,14 +83,34 @@ export function PageCount({ shown, total }: { shown: number; total: number }) {
   return <p className="muted small page-count">Showing the newest {shown} of {total}.</p>
 }
 
-export function PageHeader({ title, subtitle, children }: { title: string; subtitle?: ReactNode; children?: ReactNode }) {
+export function PageHeader({ title, subtitle, eyebrow, children }: {
+  title: string
+  subtitle?: ReactNode
+  eyebrow?: string
+  children?: ReactNode
+}) {
   return (
     <div className="page-header">
       <div>
+        {eyebrow && <span className="eyebrow">{eyebrow}</span>}
         <h1>{title}</h1>
         {subtitle && <p className="muted">{subtitle}</p>}
       </div>
       {children}
+    </div>
+  )
+}
+
+export function Figures({ children }: { children: ReactNode }) {
+  return <div className="figures">{children}</div>
+}
+
+export function Figure({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: Level }) {
+  return (
+    <div className={`figure ${tone ? `figure-${tone}` : ''}`}>
+      <span className="figure-label">{label}</span>
+      <span className="figure-value">{value}</span>
+      {hint && <span className="figure-hint">{hint}</span>}
     </div>
   )
 }

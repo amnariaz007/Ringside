@@ -1,46 +1,70 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { api } from './api'
+import { useAuth } from './auth'
 import { useLoad } from './hooks'
+import Login from './pages/Login'
+import { Icon } from './visuals'
 
 const NAV = [
-  { to: '/', label: 'Overview', end: true },
-  { to: '/orders', label: 'Orders' },
-  { to: '/rings', label: 'Fraud rings' },
-  { to: '/disputes', label: 'Disputes' },
-  { to: '/audit', label: 'Audit log' },
-]
+  { to: '/', label: 'Overview', icon: 'overview', end: true },
+  { to: '/orders', label: 'Orders', icon: 'orders' },
+  { to: '/rings', label: 'Fraud rings', icon: 'rings' },
+  { to: '/disputes', label: 'Disputes', icon: 'disputes' },
+  { to: '/audit', label: 'Audit log', icon: 'audit' },
+] as const
 
-export default function App() {
+function Shell() {
+  const { user, logout } = useAuth()
   const health = useLoad(() => api.health(), [])
-  const mock = health.data?.paypal_mode === 'mock'
+  const dash = useLoad(() => api.dashboard(), [])
+  const openDisputes = dash.data?.open_disputes.length ?? 0
 
   return (
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
-          <img src="/brand/ringside-mark.svg" alt="" width={28} height={28} />
+          <img src="/brand/ringside-mark.svg" alt="" width={30} height={30} />
           <span>Ringside</span>
         </div>
         <nav aria-label="Main">
           {NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => (isActive ? 'active' : '')}>
+            <NavLink key={n.to} to={n.to} end={'end' in n} className={({ isActive }) => (isActive ? 'active' : '')}>
+              <Icon name={n.icon} />
               {n.label}
+              {n.to === '/disputes' && openDisputes > 0 && (
+                <span className="nav-count" aria-label={`${openDisputes} open`}>{openDisputes}</span>
+              )}
             </NavLink>
           ))}
         </nav>
         <div className="sidebar-foot">
-          <span className="muted small">Fraud & dispute copilot for PayPal sellers</span>
+          <div className="shop-card">
+            <strong>Juniper Lane Apparel</strong>
+            <span>Austin, Texas · USD</span>
+          </div>
           {health.data && (
-            <span className={`env ${mock ? 'env-mock' : 'env-live'}`}
-              title="Simulated data is labelled honestly; sandbox mode calls PayPal's sandbox API.">
-              PayPal: {health.data.paypal_mode} · AI: {health.data.ai_provider}
+            <span className="env" title="Simulated data is labelled honestly; sandbox mode calls PayPal's sandbox API.">
+              PAYPAL <b>{health.data.paypal_mode}</b> · AI <b>{health.data.ai_provider}</b>
             </span>
+          )}
+          {user && (
+            <button className="logout" onClick={() => void logout()}>
+              Sign out {user.username}
+            </button>
           )}
         </div>
       </aside>
       <main className="main">
-        <Outlet />
+        <div className="page">
+          <Outlet />
+        </div>
       </main>
     </div>
   )
+}
+
+export default function App() {
+  const { user, checking } = useAuth()
+  if (checking) return <div className="page"><div className="skeleton" aria-busy="true" /></div>
+  return user ? <Shell /> : <Login />
 }

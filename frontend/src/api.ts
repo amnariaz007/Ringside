@@ -32,6 +32,7 @@ export interface OrderRow {
   seller_protection: string
   score: number | null
   level: Level | null
+  rules: string[]
 }
 
 export interface OrderDetail extends OrderRow {
@@ -225,13 +226,20 @@ async function get<T>(path: string): Promise<T> {
   return request<T>(path)
 }
 
+function csrfToken(): string {
+  return document.cookie.split('; ').find((c) => c.startsWith('csrftoken='))?.split('=')[1] ?? ''
+}
+
 async function post<T>(path: string, body?: unknown): Promise<T> {
   return request<T>(path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
 }
+
+/** Fired when the session has expired, so the app can show the login screen. */
+export const UNAUTHORIZED_EVENT = "ringside:unauthorized"
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let res: Response
@@ -249,15 +257,25 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     } catch {
       /* body wasn't JSON */
     }
+    if (res.status === 403 && !path.startsWith('/auth/')) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
     throw new ApiError(res.status, detail, body)
   }
   return res.json() as Promise<T>
 }
 
+export interface SessionUser {
+  username: string
+  name: string
+}
+
 export const api = {
+  me: () => get<{ authenticated: boolean; user?: SessionUser }>('/auth/me/'),
+  login: (username: string, password: string) =>
+    post<{ authenticated: boolean; user: SessionUser }>('/auth/login/', { username, password }),
+  logout: () => post<{ authenticated: boolean }>('/auth/logout/'),
   health: () => get<{ ok: boolean; paypal_mode: string; ai_provider: string }>('/health/'),
   dashboard: () => get<Dashboard>('/dashboard/'),
-  orders: (level?: Level) => get<Page<OrderRow>>(`/orders/?limit=200${level ? `&level=${level}` : ''}`),
+  orders: (level?: Level) => get<Page<OrderRow>>(`/orders/?limit=1000${level ? `&level=${level}` : ''}`),
   order: (id: string | number) => get<OrderDetail>(`/orders/${id}/`),
   disputes: () => get<Page<DisputeRow>>('/disputes/?limit=200'),
   rings: () => get<{ results: Ring[] }>('/graph/rings/'),
@@ -268,5 +286,5 @@ export const api = {
     post<CopilotCase>(`/disputes/${disputeId}/copilot/submit/`, {
       action, text, confirm: true, ...(action === 'PARTIAL_REFUND' ? { offer_amount: offerAmount } : {}),
     }),
-  audit: (actor?: string) => get<Page<AuditRow>>(`/audit/?limit=200${actor ? `&actor=${actor}` : ''}`),
+  audit: (actor?: string) => get<Page<AuditRow>>(`/audit/?limit=1000${actor ? `&actor=${actor}` : ''}`),
 }
