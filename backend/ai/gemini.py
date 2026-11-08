@@ -50,42 +50,65 @@ def _check_grounded(text: str, source: str, max_chars: int) -> list[str]:
 
 
 class GeminiProvider:
-    def __init__(self, model: str | None = None, api_key: str | None = None):
+    def __init__(self, model: str | None = None, api_key: str | None = None, fallbacks: list[str] | None = None):
         self.model = model or settings.GEMINI_MODEL
         self.api_key = api_key or settings.GEMINI_API_KEY
         self.name = f"gemini:{self.model}"
+        extra = settings.GEMINI_FALLBACK_MODELS if fallbacks is None else fallbacks
+        self.models = [self.model] + [m for m in extra if m and m != self.model]
+        self.used_model = self.model
 
     # --- transport ---------------------------------------------------------------
 
     def generate(self, task: str, system: str, user: str, schema: dict) -> dict:
-        """Call Gemini for structured JSON. Cached by (model, task, prompt)."""
-        key = hashlib.sha256(json.dumps([self.model, task, system, user], sort_keys=True).encode()).hexdigest()
-        hit = AICache.objects.filter(key=key).first()
-        if hit:
-            return hit.response
-        resp = requests.post(
-            API.format(model=self.model),
-            headers={"x-goog-api-key": self.api_key, "Content-Type": "application/json"},
-            json={
-                "systemInstruction": {"parts": [{"text": system}]},
-                "contents": [{"role": "user", "parts": [{"text": user}]}],
-                "generationConfig": {
-                    "temperature": 0.2,
-                    "responseMimeType": "application/json",
-                    "responseSchema": schema,
-                },
-            },
-            timeout=settings.AI_TIMEOUT_SECONDS,
-        )
-        if resp.status_code != 200:
-            raise RuntimeError(f"Gemini HTTP {resp.status_code}: {resp.text[:200]}")
-        body = resp.json()
-        try:
-            data = json.loads(body["candidates"][0]["content"]["parts"][0]["text"])
-        except (KeyError, IndexError, ValueError) as exc:
-            raise RuntimeError(f"Gemini returned no usable JSON: {str(body)[:200]}") from exc
-        AICache.objects.update_or_create(key=key, defaults={"task": task, "model": self.model, "response": data})
-        return data
+        """
+        Call Gemini for structured JSON, trying the main model and then each
+        fallback model when one is busy (429/5xx) or slow. Cached by
+        (model, task, prompt). Sets self.used_model to the model that answered.
+        """
+        errors = []
+        for model in self.models:
+            key = hashlib.sha256(json.dumps([model, task, system, user], sort_keys=True).encode()).hexdigest()
+            hit = AICache.objects.filter(key=key).first()
+            if hit:
+                self.used_model = model
+                return hit.response
+            try:
+                resp = requests.post(
+                    API.format(model=model),
+                    headers={"x-goog-api-key": self.api_key, "Content-Type": "application/json"},
+                    json={
+                        "systemInstruction": {"parts": [{"text": system}]},
+                        "contents": [{"role": "user", "parts": [{"text": user}]}],
+                        "generationConfig": {
+                            "temperature": 0.2,
+                            "responseMimeType": "application/json",
+                            "responseSchema": schema,
+                        },
+                    },
+                    timeout=settings.AI_TIMEOUT_SECONDS,
+                )
+            except requests.RequestException as exc:  # timeout or network: try the next model
+                errors.append(f"{model}: {type(exc).__name__}")
+                continue
+            if resp.status_code == 429 or resp.status_code >= 500:
+                errors.append(f"{model}: HTTP {resp.status_code}")
+                continue
+            if resp.status_code != 200:
+                raise RuntimeError(f"Gemini HTTP {resp.status_code}: {resp.text[:200]}")
+            body = resp.json()
+            try:
+                data = json.loads(body["candidates"][0]["content"]["parts"][0]["text"])
+            except (KeyError, IndexError, ValueError) as exc:
+                raise RuntimeError(f"Gemini returned no usable JSON: {str(body)[:200]}") from exc
+            AICache.objects.update_or_create(key=key, defaults={"task": task, "model": model, "response": data})
+            self.used_model = model
+            return data
+        raise RuntimeError("all Gemini models busy or unreachable: " + "; ".join(errors))
+
+    @property
+    def source(self) -> str:
+        return f"gemini:{self.used_model}"
 
     # --- tasks -------------------------------------------------------------------
 
@@ -101,12 +124,13 @@ class GeminiProvider:
             {"type": "OBJECT", "properties": {"text": {"type": "STRING"}}, "required": ["text"]},
         )
         text = str(data.get("text", "")).strip()
-        problems = _check_grounded(text, user, 400)
+        # "/100" is the score's scale, so it counts as known.
+        problems = _check_grounded(text, user + " 100", 400)
         if str(score) not in text:
             problems.append("doesn't state the score")
         if problems:
             raise AIRejected(problems)
-        return AIText(text, self.name)
+        return AIText(text, self.source)
 
     def summarize_ring(self, stats: dict) -> AIText:
         user = json.dumps(stats)
@@ -122,7 +146,7 @@ class GeminiProvider:
         problems = _check_grounded(text, user, 400)
         if problems:
             raise AIRejected(problems)
-        return AIText(text, self.name)
+        return AIText(text, self.source)
 
     def draft_dispute(self, *, action: str, reason: str, evidence: list[dict], buyer_messages: list[dict],
                       offer_amount: Decimal | None, currency: str) -> AIText:
@@ -154,7 +178,7 @@ class GeminiProvider:
         problems = guard.check(text, action, evidence, offer_amount=offer_amount, currency=currency)
         if problems:
             raise AIRejected(problems)
-        return AIText(text, self.name, tuple(sorted(set(guard.CITATION.findall(text)))))
+        return AIText(text, self.source, tuple(sorted(set(guard.CITATION.findall(text)))))
 
 
 class WithFallback:

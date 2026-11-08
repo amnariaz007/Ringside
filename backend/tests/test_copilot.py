@@ -296,3 +296,19 @@ def test_sandbox_provide_evidence_is_multipart(settings):
     name, body, ctype = kwargs["files"]["input"]
     assert ctype == "application/json"
     assert json.loads(body)["evidences"][0]["evidence_type"] == "PROOF_OF_FULFILLMENT"
+
+
+def test_busy_model_falls_back_to_next_model_then_template():
+    from risk.rules import OrderFacts
+    from datetime import datetime, timezone
+    facts = OrderFacts(order_id="O", amount=Decimal("50"), currency="USD", created_at=datetime.now(timezone.utc))
+    ok = gemini_reply({"text": "Low risk (0/100): ship as normal."})
+    busy = gemini_reply({}, status=503)
+    p = gemini.WithFallback(gemini.GeminiProvider(model="main", api_key="k", fallbacks=["backup"]), TemplateProvider())
+    with mock.patch("ai.gemini.requests.post", side_effect=[busy, ok]) as post:
+        out = p.explain_risk(score=0, level="low", hits=[], facts=facts)
+    assert out.source == "gemini:backup" and "main" in post.call_args_list[0].args[0]
+    with mock.patch("ai.gemini.requests.post", side_effect=[busy, busy]):
+        out = gemini.WithFallback(gemini.GeminiProvider(model="m2", api_key="k", fallbacks=["b2"]),
+                                  TemplateProvider()).explain_risk(score=0, level="low", hits=[], facts=facts)
+    assert out.source == "template" and "all Gemini models busy" in out.notes[0]

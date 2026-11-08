@@ -140,7 +140,9 @@ PAYPAL_API_BASE = os.environ.get("PAYPAL_API_BASE", "https://api-m.sandbox.paypa
 # and falls back to the template on any error, rate limit or failed safety check.
 AI_PROVIDER = os.environ.get("AI_PROVIDER", "template")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
+# Tried in order when the main model is busy (429/5xx) or slow, before the template.
+GEMINI_FALLBACK_MODELS = [m.strip() for m in os.environ.get("GEMINI_FALLBACK_MODELS", "gemini-3.5-flash-lite").split(",") if m.strip()]
 AI_TIMEOUT_SECONDS = float(os.environ.get("AI_TIMEOUT_SECONDS", "20"))
 
 # How the dispute copilot runs after a dispute arrives: "inline" (in the webhook

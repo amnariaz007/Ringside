@@ -151,8 +151,12 @@ def seed_history(now: datetime | None = None, seed: int = 42) -> dict:
     for d in disputes:
         ingest_dispute(d)
 
-    for order in Order.objects.filter(seller__paypal_merchant_id=MERCHANT_ID).order_by("created_at"):
-        score_order(order)
+    # 30 days of history is scored with template text, so seeding doesn't spend AI quota;
+    # live events (and the dispute copilot) use the configured AI provider.
+    from django.test import override_settings
+    with override_settings(AI_PROVIDER="template"):
+        for order in Order.objects.filter(seller__paypal_merchant_id=MERCHANT_ID).order_by("created_at"):
+            score_order(order)
 
     return {"orders": len(orders), "refunds": len(refunds), "disputes": len(disputes)}
 
