@@ -44,10 +44,14 @@ export interface OrderDetail extends OrderRow {
   disputes: { id: number; paypal_dispute_id: string; status: string; reason: string }[]
 }
 
+export type CopilotAction = 'FIGHT' | 'ACCEPT' | 'PARTIAL_REFUND'
+
 export interface DisputeRow {
   id: number
   paypal_dispute_id: string
   paypal_order_id: string
+  buyer: string
+  copilot: { status: string; recommendation: CopilotAction | ''; confidence: string } | null
   reason: string
   status: string
   amount: string
@@ -55,6 +59,52 @@ export interface DisputeRow {
   seller_response_due_at: string | null
   outcome: string
   created_at: string
+}
+
+export interface EvidenceItem {
+  id: string
+  kind: string
+  title: string
+  detail: string
+  supports: 'fight' | 'accept' | ''
+  data: Record<string, unknown>
+}
+
+export interface CopilotCase {
+  id: number
+  status: 'PREPARING' | 'READY' | 'SUBMITTING' | 'SUBMITTED' | 'FAILED'
+  dispute: {
+    id: number
+    paypal_dispute_id: string
+    reason: string
+    status: string
+    amount: string
+    currency: string
+    outcome: string
+    seller_response_due_at: string | null
+    created_at: string
+    order_id: number | null
+    paypal_order_id: string
+    buyer: string
+    payer_id: string
+  }
+  evidence: EvidenceItem[]
+  buyer_messages: { id: string; posted_at: string; content: string; untrusted: boolean }[]
+  recommendation: CopilotAction
+  confidence: 'high' | 'medium' | 'low'
+  reasons: { text: string; evidence_ids: string[] }[]
+  offer_amount: string | null
+  draft_text: string
+  draft_source: string
+  draft_cited: string[]
+  guard_notes: string[]
+  decided_action: CopilotAction | ''
+  final_text: string
+  edited_by_seller: boolean
+  approved_at: string | null
+  submitted_at: string | null
+  error: string
+  prepared_at: string | null
 }
 
 export interface Dashboard {
@@ -168,9 +218,21 @@ export class ApiError extends Error {
 }
 
 async function get<T>(path: string): Promise<T> {
+  return request<T>(path)
+}
+
+async function post<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let res: Response
   try {
-    res = await fetch(`/api${path}`, { headers: { Accept: 'application/json' } })
+    res = await fetch(`/api${path}`, { ...init, headers: { Accept: 'application/json', ...init.headers } })
   } catch {
     throw new ApiError(0, 'Could not reach the Ringside server.')
   }
@@ -194,5 +256,9 @@ export const api = {
   disputes: () => get<Page<DisputeRow>>('/disputes/?limit=200'),
   rings: () => get<{ results: Ring[] }>('/graph/rings/'),
   buyerGraph: (payerId: string) => get<BuyerGraph>(`/graph/buyers/${encodeURIComponent(payerId)}/`),
+  copilot: (disputeId: string | number) => get<CopilotCase>(`/disputes/${disputeId}/copilot/`),
+  regenerate: (disputeId: string | number) => post<CopilotCase>(`/disputes/${disputeId}/copilot/regenerate/`),
+  submit: (disputeId: string | number, action: CopilotAction, text: string) =>
+    post<CopilotCase>(`/disputes/${disputeId}/copilot/submit/`, { action, text, confirm: true }),
   audit: (actor?: string) => get<Page<AuditRow>>(`/audit/?limit=200${actor ? `&actor=${actor}` : ''}`),
 }

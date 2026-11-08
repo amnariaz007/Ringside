@@ -1,6 +1,7 @@
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { Async, Card, PageCount, PageHeader } from '../components'
-import { dateTime, humanize, money } from '../format'
+import { dateTime, humanize, money, reasonLabel } from '../format'
 import { useLoad } from '../hooks'
 
 function deadline(iso: string | null): { text: string; urgent: boolean } {
@@ -12,11 +13,12 @@ function deadline(iso: string | null): { text: string; urgent: boolean } {
 
 export default function Disputes() {
   const state = useLoad(() => api.disputes(), [])
+  const navigate = useNavigate()
   return (
     <>
       <PageHeader
         title="Disputes"
-        subtitle="Deadlines, evidence and AI-drafted responses. The copilot arrives next; you approve every reply."
+        subtitle="Evidence, a recommendation and a drafted reply for every dispute. Nothing is sent until you approve it."
       />
       <Card className="card-flush">
         <Async state={state}>
@@ -26,6 +28,7 @@ export default function Disputes() {
                 <thead>
                   <tr>
                     <th>Reason</th>
+                    <th>Copilot</th>
                     <th>Status</th>
                     <th>Respond by</th>
                     <th className="hide-sm">Opened</th>
@@ -36,10 +39,20 @@ export default function Disputes() {
                   {page.results.map((d) => {
                     const dl = deadline(d.seller_response_due_at)
                     return (
-                      <tr key={d.id}>
+                      <tr key={d.id} className="clickable" onClick={() => navigate(`/disputes/${d.id}`)}>
                         <td>
-                          <strong>{humanize(d.reason)}</strong>
-                          <div className="muted small"><code>{d.paypal_dispute_id}</code></div>
+                          <Link to={`/disputes/${d.id}`} onClick={(e) => e.stopPropagation()}>
+                            <strong>{reasonLabel(d.reason)}</strong>
+                          </Link>
+                          <div className="muted small">{d.buyer} · <code>{d.paypal_dispute_id}</code></div>
+                        </td>
+                        <td>
+                          {!d.copilot ? <span className="muted small">not started</span>
+                            : d.copilot.status === 'READY' ? (
+                              <span className="pill pill-partial">Ready: {humanize(d.copilot.recommendation)}</span>
+                            ) : (
+                              <span className="pill pill-none">{humanize(d.copilot.status)}</span>
+                            )}
                         </td>
                         <td>{d.outcome ? humanize(d.outcome) : humanize(d.status)}</td>
                         <td><span className={`deadline ${dl.urgent ? 'deadline-urgent' : ''}`}>{dl.text}</span></td>

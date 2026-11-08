@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { Async, Card, PageHeader, RiskBadge, Stat } from '../components'
-import { hoursLeft, humanize, money, relative } from '../format'
+import { hoursLeft, money, reasonLabel, relative } from '../format'
 import { useLoad } from '../hooks'
 
 export default function Dashboard() {
@@ -68,15 +68,17 @@ export default function Dashboard() {
                 ) : (
                   <ul className="list">
                     {d.open_disputes.map((x) => (
-                      <li key={x.id} className="list-row">
+                      <li key={x.id}>
+                        <Link to={`/disputes/${x.id}`} className="list-row">
                         <span className={`deadline ${x.hours_left !== null && x.hours_left < 72 ? 'deadline-urgent' : ''}`}>
                           {hoursLeft(x.hours_left)}
                         </span>
                         <span className="grow">
-                          <strong>{humanize(x.reason)}</strong>
+                          <strong>{reasonLabel(x.reason)}</strong>
                           <span className="muted"> · {x.buyer}</span>
                         </span>
                         <span className="num">{money(x.amount, x.currency)}</span>
+                        </Link>
                       </li>
                     ))}
                   </ul>

@@ -99,10 +99,21 @@ class OrderDetailSerializer(OrderListSerializer):
 
 class DisputeSerializer(serializers.ModelSerializer):
     paypal_order_id = serializers.CharField(source="order.paypal_order_id", default="")
+    buyer = serializers.SerializerMethodField()
+    copilot = serializers.SerializerMethodField()
 
     class Meta:
         model = Dispute
         fields = [
-            "id", "paypal_dispute_id", "paypal_order_id", "reason", "status", "amount", "currency",
-            "seller_response_due_at", "outcome", "created_at",
+            "id", "paypal_dispute_id", "paypal_order_id", "buyer", "reason", "status", "amount", "currency",
+            "seller_response_due_at", "outcome", "created_at", "copilot",
         ]
+
+    def get_buyer(self, obj):
+        return str(obj.order.buyer) if obj.order else ""
+
+    def get_copilot(self, obj):
+        case = getattr(obj, "case", None)
+        if case is None:
+            return None
+        return {"status": case.status, "recommendation": case.recommendation, "confidence": case.confidence}

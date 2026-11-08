@@ -16,6 +16,17 @@ export function relative(iso: string): string {
   return `${Math.round(hours / 24)} d ago`
 }
 
+const REASONS: Record<string, string> = {
+  MERCHANDISE_OR_SERVICE_NOT_RECEIVED: 'Item not received',
+  MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED: 'Item not as described',
+  UNAUTHORISED: 'Unauthorised payment',
+}
+
+/** Plain-English dispute reason, falling back to the humanised PayPal code. */
+export function reasonLabel(code: string): string {
+  return REASONS[code] ?? humanize(code)
+}
+
 /** "MERCHANDISE_OR_SERVICE_NOT_RECEIVED" -> "Merchandise or service not received" */
 export function humanize(code: string): string {
   const s = code.replace(/_/g, ' ').toLowerCase()

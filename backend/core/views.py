@@ -31,7 +31,7 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class DisputeViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Dispute.objects.select_related("order")
+    queryset = Dispute.objects.select_related("order__buyer", "case")
     serializer_class = DisputeSerializer
 
 

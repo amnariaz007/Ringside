@@ -2,12 +2,16 @@
 AI text generation behind one interface.
 
 AI_PROVIDER=template (the default) builds text from the rule findings with
-plain code: free, instant, and it can never invent a fact. Real LLM providers
-(Gemini, Groq, Claude) will implement the same methods and fall back to the
-template on any error or rate limit, so the demo never breaks.
+plain code: free, instant, and it can never invent a fact.
 
-Guardrail for every provider: the input is structured findings only. Buyer
-free text never reaches a prompt as instructions.
+AI_PROVIDER=gemini (with GEMINI_API_KEY) uses Google's Gemini through
+ai/gemini.py. Every Gemini answer passes a safety check first, and any error,
+rate limit or failed check falls back to the template, so the demo never breaks.
+
+Guardrails for every provider:
+  * Inputs are structured findings and evidence. AI never decides a score or
+    an action; rules do.
+  * Buyer messages are passed only as clearly fenced, untrusted data.
 """
 
 from __future__ import annotations
@@ -25,6 +29,8 @@ from risk.rules import OrderFacts, RuleHit
 class AIText:
     text: str
     source: str  # which provider actually produced the text
+    cited: tuple[str, ...] = ()       # evidence ids cited (dispute drafts)
+    notes: tuple[str, ...] = ()       # why an AI answer was rejected, if it was
 
 
 class AIProvider(Protocol):
@@ -32,6 +38,8 @@ class AIProvider(Protocol):
 
     def explain_risk(self, *, score: int, level: str, hits: Sequence[RuleHit], facts: OrderFacts) -> AIText: ...
     def summarize_ring(self, stats: dict) -> AIText: ...
+    def draft_dispute(self, *, action: str, reason: str, evidence: list[dict], buyer_messages: list[dict],
+                      offer_amount: Decimal | None, currency: str) -> AIText: ...
 
 
 class TemplateProvider:
@@ -81,6 +89,50 @@ class TemplateProvider:
         return AIText(text[0].upper() + text[1:], self.name)
 
 
+    def draft_dispute(self, *, action: str, reason: str, evidence: list[dict], buyer_messages: list[dict],
+                      offer_amount: Decimal | None, currency: str) -> AIText:
+        """Assembles evidence sentences verbatim, each with its citation. Can't invent a fact."""
+        by_kind = {e["kind"]: e for e in evidence}
+        order = by_kind.get("order")
+        order_ref = f"PayPal order {order['data']['paypal_order_id']}" if order else "this order"
+        claim = REASON_LABELS.get(reason, reason.replace("_", " ").lower())
+        lines: list[str] = []
+        cited: list[str] = []
+
+        def use(kind: str) -> None:
+            e = by_kind.get(kind)
+            if e:
+                # Citation goes inside the sentence: "...delivered on 10 Nov [E4]."
+                lines.append(f"{e['detail'].rstrip('.')} [{e['id']}].")
+                cited.append(e["id"])
+
+        if action == "FIGHT":
+            lines.append(f"Hello, we're responding to the {claim} claim on {order_ref}.")
+            for kind in ("tracking", "delivery", "seller_protection", "buyer_history"):
+                if kind != "seller_protection" or by_kind.get(kind, {}).get("supports") == "fight":
+                    use(kind)
+            lines.append("Based on this shipping and delivery record, we ask PayPal to close the case in the "
+                         "seller's favour. Thank you for reviewing it.")
+        elif action == "PARTIAL_REFUND":
+            amount = f"{currency} {offer_amount}" if offer_amount is not None else "a partial refund"
+            lines.append(f"Hello, we're sorry the item on {order_ref} didn't meet expectations.")
+            use("order")
+            lines.append(f"To settle this quickly, we'd like to offer a partial refund of {amount}, "
+                         "and the buyer can keep the item.")
+        else:
+            lines.append(f"Hello, we've reviewed the {claim} claim on {order_ref}.")
+            use("order")
+            lines.append("We accept the claim and are sorry for the trouble.")
+        return AIText(" ".join(lines), self.name, tuple(cited))
+
+
+REASON_LABELS = {
+    "MERCHANDISE_OR_SERVICE_NOT_RECEIVED": "item not received",
+    "MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED": "item not as described",
+    "UNAUTHORISED": "unauthorised payment",
+}
+
+
 def _join(items: list[str]) -> str:
     """['a'] -> 'a'; ['a', 'b', 'c'] -> 'a, b and c'; [] -> ''."""
     if len(items) <= 1:
@@ -88,12 +140,9 @@ def _join(items: list[str]) -> str:
     return ", ".join(items[:-1]) + " and " + items[-1]
 
 
-_PROVIDERS = {"template": TemplateProvider}
-
-
 def get_provider() -> AIProvider:
-    cls = _PROVIDERS.get(settings.AI_PROVIDER)
-    if cls is None:
-        # Unknown or not-yet-implemented provider: degrade safely instead of crashing.
-        return TemplateProvider()
-    return cls()
+    if settings.AI_PROVIDER == "gemini" and settings.GEMINI_API_KEY:
+        from .gemini import GeminiProvider, WithFallback
+        return WithFallback(GeminiProvider(), TemplateProvider())
+    # template, an unknown provider, or gemini without a key: degrade safely instead of crashing.
+    return TemplateProvider()

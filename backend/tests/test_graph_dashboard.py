@@ -92,7 +92,7 @@ def test_order_detail_has_advice_refunds_and_disputes(seeded, client):
 def test_audit_api_filters_by_actor(seeded, client):
     rows = client.get("/api/audit/?actor=ai").json()["results"]
     assert rows and all(r["actor"] == "ai" for r in rows)
-    assert {r["action"] for r in rows} == {"risk.explained"}
+    assert "risk.explained" in {r["action"] for r in rows}
 
 
 def test_single_buyer_summary_wording():

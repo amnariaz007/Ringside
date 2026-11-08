@@ -2,7 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api } from '../api'
 import type { Finding } from '../api'
 import { Async, Card, PageHeader, ProtectionBadge, RiskBadge, ScoreMeter } from '../components'
-import { dateTime, humanize, money } from '../format'
+import { dateTime, humanize, money, reasonLabel } from '../format'
 import { useLoad } from '../hooks'
 
 function EvidenceList({ finding }: { finding: Finding }) {
@@ -108,7 +108,7 @@ export default function OrderDetail() {
                         <li key={r.paypal_refund_id}>Refunded {money(r.amount, o.currency)} · {dateTime(r.created_at)}</li>
                       ))}
                       {o.disputes.map((d) => (
-                        <li key={d.id}>Dispute: {humanize(d.reason)} · {humanize(d.status)}</li>
+                        <li key={d.id}>Dispute: {reasonLabel(d.reason)} · {humanize(d.status)}</li>
                       ))}
                     </ul>
                   </Card>

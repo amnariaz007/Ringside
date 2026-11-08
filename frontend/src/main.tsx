@@ -6,6 +6,7 @@ import './index.css'
 import Audit from './pages/Audit'
 import Dashboard from './pages/Dashboard'
 import Disputes from './pages/Disputes'
+import DisputeCopilot from './pages/DisputeCopilot'
 import OrderDetail from './pages/OrderDetail'
 import Orders from './pages/Orders'
 
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
       { path: 'orders/:id', element: <OrderDetail /> },
       { path: 'rings', element: <Suspense fallback={<div className="skeleton" />}><Rings /></Suspense> },
       { path: 'disputes', element: <Disputes /> },
+      { path: 'disputes/:id', element: <DisputeCopilot /> },
       { path: 'audit', element: <Audit /> },
     ],
   },

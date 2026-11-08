@@ -76,6 +76,26 @@ def _normal_order(rng: random.Random, buyer: dict, at: datetime) -> dict:
     )
 
 
+CARRIERS = [("USPS", 22), ("UPS", 18), ("FEDEX", 12)]
+
+
+def _tracking(rng: random.Random, carrier: str, length: int) -> str:
+    digits = "".join(str(rng.randrange(10)) for _ in range(length))
+    return ("1Z" + digits[2:]) if carrier == "UPS" else digits
+
+
+def _ship_all(rng: random.Random) -> None:
+    """Every seeded order was shipped with tracking the next day and delivered 3-5 days later."""
+    from core.models import Shipment
+    for order in Order.objects.filter(seller__paypal_merchant_id=MERCHANT_ID, shipment__isnull=True).order_by("created_at"):
+        carrier, length = rng.choice(CARRIERS)
+        shipped = order.created_at + timedelta(hours=rng.randrange(14, 30))
+        Shipment.objects.create(
+            order=order, carrier=carrier, tracking_number=_tracking(rng, carrier, length), status="DELIVERED",
+            shipped_at=shipped, delivered_at=shipped + timedelta(days=rng.randrange(3, 6), hours=rng.randrange(0, 8)),
+        )
+
+
 def seed_history(now: datetime | None = None, seed: int = 42) -> dict:
     """Create 30 days of history. Deterministic for a given seed."""
     rng = random.Random(seed)
@@ -125,6 +145,7 @@ def seed_history(now: datetime | None = None, seed: int = 42) -> dict:
 
     for o in orders:
         ingest_order(o)
+    _ship_all(rng)
     for r in refunds:
         ingest_refund(r)
     for d in disputes:
@@ -180,6 +201,7 @@ def live_scenario(name: str, now: datetime | None = None) -> service.Result:
         capture = (Capture.objects.filter(order__seller__paypal_merchant_id=MERCHANT_ID,
                                           seller_protection_status="ELIGIBLE",
                                           order__buyer__payer_id__startswith="NORMALPAYER",
+                                          order__shipment__status="DELIVERED",
                                           refunds__isnull=True, disputes__isnull=True)
                    .order_by("-captured_at").first())
         if capture is None:

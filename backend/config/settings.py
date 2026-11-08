@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "core",
     "graph",
+    "disputes",
     "risk",
     "paypal_integration",
     "webhooks",
@@ -114,8 +115,16 @@ PAYPAL_CLIENT_SECRET = os.environ.get("PAYPAL_CLIENT_SECRET", "")
 PAYPAL_WEBHOOK_ID = os.environ.get("PAYPAL_WEBHOOK_ID", "")
 PAYPAL_API_BASE = os.environ.get("PAYPAL_API_BASE", "https://api-m.sandbox.paypal.com")
 
-# "template" needs no key. Real providers (gemini, groq, claude) plug in later.
+# "template" needs no key. "gemini" uses Google's Gemini API when GEMINI_API_KEY is set
+# and falls back to the template on any error, rate limit or failed safety check.
 AI_PROVIDER = os.environ.get("AI_PROVIDER", "template")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+AI_TIMEOUT_SECONDS = float(os.environ.get("AI_TIMEOUT_SECONDS", "20"))
+
+# How the dispute copilot runs after a dispute arrives: "inline" (in the webhook
+# request) now; "render_workflow" once the Render Workflow is deployed.
+COPILOT_RUNNER = os.environ.get("COPILOT_RUNNER", "inline")
 
 # HMAC key for hashing buyer emails and phones. Must be secret in production.
 PII_HASH_SALT = os.environ.get("PII_HASH_SALT", DEV_PII_SALT)

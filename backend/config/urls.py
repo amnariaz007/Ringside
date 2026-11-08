@@ -4,6 +4,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from core.views import AuditEventViewSet, DisputeViewSet, OrderViewSet, dashboard_view
+from disputes import views as copilot_views
 from graph import views as graph_views
 from webhooks.views import paypal_webhook
 
@@ -25,5 +26,8 @@ urlpatterns = [
     path("api/dashboard/", dashboard_view),
     path("api/graph/rings/", graph_views.rings),
     path("api/graph/buyers/<str:payer_id>/", graph_views.buyer_graph),
+    path("api/disputes/<int:pk>/copilot/", copilot_views.case_detail),
+    path("api/disputes/<int:pk>/copilot/regenerate/", copilot_views.case_regenerate),
+    path("api/disputes/<int:pk>/copilot/submit/", copilot_views.case_submit),
     path("api/", include(router.urls)),
 ]

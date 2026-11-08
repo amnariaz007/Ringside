@@ -117,5 +117,20 @@ def _process(event: dict, client) -> str:
         "paypal", "dispute.created" if created else "dispute.updated", obj=dispute,
         paypal_id=dispute.paypal_dispute_id, status=dispute.status, reason=dispute.reason,
     )
-    # Day 9-10: CUSTOMER.DISPUTE.CREATED will start the Render Workflow (dispute copilot) here.
+    if event_type == "CUSTOMER.DISPUTE.CREATED" and dispute.status == "WAITING_FOR_SELLER_RESPONSE":
+        _start_copilot(dispute)
     return f"dispute {dispute.paypal_dispute_id} {dispute.status}"
+
+
+def _start_copilot(dispute) -> None:
+    """Prepare the evidence and draft now, so the seller finds them ready. Never submits anything."""
+    from django.conf import settings
+
+    from disputes import service as copilot
+
+    if settings.COPILOT_RUNNER == "inline":
+        try:
+            copilot.prepare(dispute)
+        except Exception as exc:  # the copilot must never make PayPal retry a good webhook
+            record("system", "copilot.prepare_failed", obj=dispute, paypal_id=dispute.paypal_dispute_id,
+                   error=str(exc)[:500])

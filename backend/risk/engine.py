@@ -42,4 +42,7 @@ def score_order(order: Order) -> RiskAssessment:
         "ai", "risk.explained", obj=assessment, paypal_id=order.paypal_order_id,
         source=explanation.source, text=explanation.text,
     )
+    if explanation.notes:
+        record("ai", "risk.ai_answer_rejected", obj=assessment, paypal_id=order.paypal_order_id,
+               notes=list(explanation.notes))
     return assessment

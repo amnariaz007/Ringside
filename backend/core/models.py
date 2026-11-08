@@ -120,3 +120,24 @@ class Dispute(models.Model):
 
     def __str__(self):
         return self.paypal_dispute_id
+
+
+class Shipment(models.Model):
+    """
+    How the seller shipped an order. This is the core evidence for "item not
+    received" disputes (PayPal's PROOF_OF_FULFILLMENT takes carrier and tracking).
+    The demo seeds it; in production it comes from the seller's shop or
+    PayPal's Add Tracking API.
+    """
+
+    STATUS_CHOICES = [("SHIPPED", "Shipped"), ("IN_TRANSIT", "In transit"), ("DELIVERED", "Delivered")]
+
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="shipment")
+    carrier = models.CharField(max_length=40)  # PayPal carrier code, e.g. USPS, UPS, FEDEX
+    tracking_number = models.CharField(max_length=64)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    shipped_at = models.DateTimeField()
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    # Shipped to the address on the PayPal transaction (required for Seller Protection).
+    to_paypal_address = models.BooleanField(default=True)
+    signature_confirmed = models.BooleanField(default=False)
