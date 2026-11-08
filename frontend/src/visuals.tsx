@@ -17,7 +17,7 @@ export function RiskRing({ score, level, size = 30 }: { score: number | null; le
     >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
         <circle className="track" cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} />
-        {score !== null && level && (
+        {score !== null && level && value > 0 && (
           <circle
             className={`arc-${level}`}
             cx={size / 2}

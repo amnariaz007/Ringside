@@ -189,18 +189,20 @@ a.list-row:hover { background: var(--surface-2); text-decoration: none; }
 }
 
 /* ---------------------------------------------------------------- risk ring, badges, pills */
-.risk-ring { display: inline-grid; place-items: center; position: relative; flex: none; }
+.risk-ring { display: inline-grid; place-items: center; position: relative; flex: none; line-height: 1; vertical-align: middle; }
 .risk-ring svg { display: block; transform: rotate(-90deg); }
 .risk-ring .track { stroke: var(--rule); }
 .risk-ring .arc-low { stroke: var(--low); }
 .risk-ring .arc-medium { stroke: var(--medium); }
 .risk-ring .arc-high { stroke: var(--high); }
-.risk-ring span {
-  position: absolute; inset: 0; display: grid; place-items: center; font-variant-numeric: tabular-nums;
-  font-weight: 650; color: var(--ink); font-size: 11.5px;
+.risk-ring > span {
+  /* Fixed line-height so table cells (54px line-height) can't push the number off-centre. */
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  line-height: 1; font-variant-numeric: tabular-nums; font-weight: 650; color: var(--ink);
+  font-size: 11px; letter-spacing: -0.02em;
 }
-.risk-ring.lg span { font-family: var(--serif); font-size: 30px; font-weight: 560; }
-.risk-cell { display: inline-flex; align-items: center; gap: 10px; }
+.risk-ring.lg > span { font-family: var(--serif); font-size: 30px; font-weight: 560; }
+.risk-cell { display: inline-flex; align-items: center; gap: 10px; height: 100%; line-height: 1; }
 .level-word { font-size: 12.5px; font-weight: 600; text-transform: capitalize; }
 .level-low { color: var(--low); }
 .level-medium { color: var(--medium); }
@@ -301,6 +303,13 @@ a.list-row:hover { background: var(--surface-2); text-decoration: none; }
   color: var(--navy); background: var(--surface); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--rule);
 }
 .graph { height: 540px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+.ring-strip { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 14px; margin-bottom: 4px; scroll-snap-type: x proximity; }
+.ring-card {
+  flex: 0 0 300px; display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--rule); box-shadow: var(--shadow); color: var(--ink); scroll-snap-align: start;
+}
+.ring-card:hover { text-decoration: none; border-color: var(--rule-strong); }
+.ring-card.active { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy), var(--shadow); background: var(--surface-2); }
 .graph .react-flow__background { color: var(--rule-strong); }
 .graph .react-flow__controls { box-shadow: var(--shadow); border-radius: 8px; overflow: hidden; }
 .graph .react-flow__controls-button { background: var(--surface); border-color: var(--rule); color: var(--ink); fill: currentColor; }
@@ -317,8 +326,8 @@ a.list-row:hover { background: var(--surface-2); text-decoration: none; }
   cursor: default; color: var(--ink);
 }
 .pg-buyer, .pg-order { cursor: pointer; }
-.pg-label { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pg-sub { font-size: 11px; color: var(--ink-2); }
+.pg-label { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pg-sub { font-size: 12px; color: var(--ink-2); }
 .pg-address, .pg-phone, .pg-email_pattern { background: var(--paper-2); border-left-color: var(--navy); }
 .tone-low { border-left-color: var(--low); }
 .tone-medium { border-left-color: var(--medium); }

@@ -71,7 +71,7 @@ function PGNode({ data }: NodeProps<Node<PGData>>) {
 
 const nodeTypes = { pg: PGNode }
 
-function layout(g: BuyerGraph): { nodes: Node<PGData>[]; edges: Edge[] } {
+function layout(g: BuyerGraph): { nodes: Node<PGData>[]; edges: Edge[]; rows: number } {
   // Rows follow the buyers: each order sits beside its buyer, each refund or dispute beside its order.
   const byId = new Map(g.nodes.map((n) => [n.id, n]))
   const children = new Map<string, string[]>()
@@ -116,7 +116,7 @@ function layout(g: BuyerGraph): { nodes: Node<PGData>[]; edges: Edge[] } {
       className: `pg-edge pg-edge-${e.kind}`,
     }
   })
-  return { nodes, edges }
+  return { nodes, edges, rows: Math.max(row, evidence.length, 1) }
 }
 
 function GraphView({ payerId }: { payerId: string }) {
@@ -134,7 +134,9 @@ function GraphView({ payerId }: { payerId: string }) {
             <span className="ai-tag">{g.summary_source === 'template' ? 'Summary' : 'AI summary'}</span>
             <p>{g.summary}</p>
           </div>
-          <div className="graph" role="region" aria-label="Graph of linked buyers, orders and shared details">
+          <div className="graph" role="region" aria-label="Graph of linked buyers, orders and shared details"
+            // Height follows the number of rows, so small rings aren't lost in empty space.
+            style={{ height: flow ? Math.min(760, Math.max(380, flow.rows * ROW_H * 1.25 + 120)) : 380 }}>
             {flow && (
               <ReactFlow
                 key={g.payer_id}
@@ -142,7 +144,7 @@ function GraphView({ payerId }: { payerId: string }) {
                 edges={flow.edges}
                 nodeTypes={nodeTypes}
                 fitView
-                fitViewOptions={{ padding: 0.2 }}
+                fitViewOptions={{ padding: 0.08, maxZoom: 1.25 }}
                 nodesConnectable={false}
                 onNodeClick={(_, node) => {
                   const n = (node.data as PGData).node
@@ -177,43 +179,39 @@ export default function Rings() {
       <PageHeader
         eyebrow="Fraud rings"
         title="Accounts that work together"
-        subtitle="Buyers joined by a shared shipping address or phone. Email look-alikes are shown but never link accounts on their own."
+        subtitle="Buyers joined by a shared shipping address or phone. Email look-alikes are shown but never link accounts on their own. Pick a ring to see its graph."
       />
-      <div className="grid-rings">
-        <Card title="Detected rings">
-          <Async state={rings}>
-            {(r) =>
-              r.results.length === 0 ? (
-                <p className="empty">No linked accounts found.</p>
-              ) : (
-                <ul className="list">
-                  {r.results.map((ring) => (
-                    <li key={ring.id}>
-                      <Link
-                        to={`/rings?buyer=${ring.id}`}
-                        className={`list-row list-row-top ${ring.payer_ids.includes(selected ?? '') ? 'selected' : ''}`}
-                      >
-                        <span className="ring-count">{ring.stats.buyers}</span>
-                        <span className="grow">
-                          <strong>{ring.stats.buyers} linked accounts</strong>
-                          <span className="muted small block">
-                            {money(ring.stats.refunded_amount, ring.stats.currency)} refunded ·{' '}
-                            {money(ring.stats.lost_amount, ring.stats.currency)} lost
-                          </span>
-                        </span>
-                        <RiskBadge level={ring.stats.max_risk_score >= 60 ? 'high' : ring.stats.max_risk_score >= 30 ? 'medium' : 'low'} score={ring.stats.max_risk_score} />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )
-            }
-          </Async>
-        </Card>
-        <Card title={selected ? <>Links around <code>{selected}</code></> : 'Graph'}>
-          {selected ? <GraphView payerId={selected} /> : <p className="empty">Pick a ring to see its graph.</p>}
-        </Card>
-      </div>
+      <Async state={rings}>
+        {(r) =>
+          r.results.length === 0 ? (
+            <p className="empty">No linked accounts found.</p>
+          ) : (
+            <div className="ring-strip" role="list" aria-label={`${r.results.length} detected rings, worst first`}>
+              {r.results.map((ring) => {
+                const level = ring.stats.max_risk_score >= 60 ? 'high' : ring.stats.max_risk_score >= 30 ? 'medium' : 'low'
+                const active = ring.payer_ids.includes(selected ?? '')
+                return (
+                  <Link key={ring.id} role="listitem" to={`/rings?buyer=${ring.id}`}
+                    className={`ring-card ${active ? 'active' : ''}`} aria-current={active ? 'true' : undefined}>
+                    <span className="ring-count">{ring.stats.buyers}</span>
+                    <span className="grow">
+                      <strong>{ring.stats.buyers} linked accounts</strong>
+                      <span className="muted small block">
+                        {money(ring.stats.refunded_amount, ring.stats.currency)} refunded ·{' '}
+                        {money(ring.stats.lost_amount, ring.stats.currency)} lost
+                      </span>
+                    </span>
+                    <RiskBadge level={level} score={ring.stats.max_risk_score} />
+                  </Link>
+                )
+              })}
+            </div>
+          )
+        }
+      </Async>
+      <Card title={selected ? <>Links around <code>{selected}</code></> : 'Graph'}>
+        {selected ? <GraphView payerId={selected} /> : <p className="empty">Pick a ring to see its graph.</p>}
+      </Card>
     </>
   )
 }
