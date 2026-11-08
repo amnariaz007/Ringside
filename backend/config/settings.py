@@ -121,6 +121,9 @@ SESSION_COOKIE_AGE = 60 * 60 * 12  # 12 hours
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o]
+if DEBUG:
+    # The Vite dev server on :5173 proxies /api to Django on :8000.
+    CSRF_TRUSTED_ORIGINS += ["http://localhost:5173", "http://127.0.0.1:5173"]
 LOGIN_ATTEMPTS_PER_WINDOW = 10
 LOGIN_WINDOW_SECONDS = 15 * 60
 

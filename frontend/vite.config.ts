@@ -5,6 +5,10 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   server: {
-    proxy: { '/api': process.env.VITE_API_TARGET ?? 'http://localhost:8000' },
+    proxy: {
+      // Keep the browser's Host header (localhost:5173) so Django's CSRF origin
+      // check sees the same origin the browser reports.
+      '/api': { target: process.env.VITE_API_TARGET ?? 'http://localhost:8000', changeOrigin: false },
+    },
   },
 })

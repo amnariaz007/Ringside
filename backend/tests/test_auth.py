@@ -89,3 +89,21 @@ def test_demo_user_command_requires_strong_password(monkeypatch):
     call_command("ensure_demo_user")
     from django.contrib.auth import get_user_model
     assert get_user_model().objects.get(username="judge@example.com").check_password("a-long-enough-password")
+
+
+def test_login_through_dev_proxy_origin(anon, seller, settings):
+    # Browsers send Origin; the Vite dev server on :5173 forwards to Django.
+    settings.CSRF_TRUSTED_ORIGINS = ["http://localhost:5173"]
+    token = csrf(anon)
+    resp = anon.post("/api/auth/login/", data=json.dumps({"username": seller.username, "password": PASSWORD}),
+                     content_type="application/json", HTTP_X_CSRFTOKEN=token,
+                     HTTP_ORIGIN="http://localhost:5173", HTTP_HOST="localhost:8000")
+    assert resp.status_code == 200
+
+
+def test_login_from_untrusted_origin_is_blocked(anon, seller):
+    token = csrf(anon)
+    resp = anon.post("/api/auth/login/", data=json.dumps({"username": seller.username, "password": PASSWORD}),
+                     content_type="application/json", HTTP_X_CSRFTOKEN=token,
+                     HTTP_ORIGIN="https://evil.example", HTTP_HOST="localhost:8000")
+    assert resp.status_code == 403
