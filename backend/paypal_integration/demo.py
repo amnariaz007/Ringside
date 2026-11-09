@@ -27,8 +27,11 @@ from webhooks import service
 from . import payloads
 from .client import MOCK_VALID_SIGNATURE, MockPayPalClient
 from .ingest import ingest_dispute, ingest_order, ingest_refund
+from .sellers import DEMO_MERCHANT_ID, merchant_id
+from .sellers import get_or_create_seller as _get_or_create_seller
 
-MERCHANT_ID = "JUNIPERLANE01"
+# Kept for tests and old imports; payloads use merchant_id() so they follow the linked account.
+MERCHANT_ID = DEMO_MERCHANT_ID
 
 FIRST = ["Emma", "James", "Sophia", "Liam", "Olivia", "Noah", "Ava", "Mateo", "Mia", "Lucas",
          "Priya", "Daniel", "Grace", "Jamal", "Chloe", "Ryan", "Aisha", "Diego", "Hannah", "Wei"]
@@ -57,17 +60,14 @@ RING_ACCOUNTS = [
 
 
 def get_or_create_seller() -> Seller:
-    seller, _ = Seller.objects.get_or_create(
-        paypal_merchant_id=MERCHANT_ID, defaults={"name": "Juniper Lane Apparel", "currency": "USD", "timezone": "America/Chicago"}
-    )
-    return seller
+    return _get_or_create_seller()
 
 
 def _normal_order(rng: random.Random, buyer: dict, at: datetime) -> dict:
     country = buyer["country"]
     city, postal, state = buyer["city"]
     return payloads.order(
-        merchant_id=MERCHANT_ID, payer_id=buyer["payer_id"], email=buyer["email"],
+        merchant_id=merchant_id(), payer_id=buyer["payer_id"], email=buyer["email"],
         given_name=buyer["first"], surname=buyer["last"], payer_country=country,
         amount=Decimal(rng.randrange(2000, 8000)) / 100, created_at=at,
         ship_line1=buyer["street"], ship_city=city, ship_postal=postal, ship_state=state,
@@ -84,10 +84,10 @@ def _tracking(rng: random.Random, carrier: str, length: int) -> str:
     return ("1Z" + digits[2:]) if carrier == "UPS" else digits
 
 
-def _ship_all(rng: random.Random) -> None:
+def _ship_all(rng: random.Random, order_ids: list[str]) -> None:
     """Every seeded order was shipped with tracking the next day and delivered 3-5 days later."""
     from core.models import Shipment
-    for order in Order.objects.filter(seller__paypal_merchant_id=MERCHANT_ID, shipment__isnull=True).order_by("created_at"):
+    for order in Order.objects.filter(paypal_order_id__in=order_ids, shipment__isnull=True).order_by("created_at"):
         carrier, length = rng.choice(CARRIERS)
         shipped = order.created_at + timedelta(hours=rng.randrange(14, 30))
         Shipment.objects.create(
@@ -131,7 +131,7 @@ def seed_history(now: datetime | None = None, seed: int = 42) -> dict:
     # Fraud ring, accounts 1-3: orders days 8-20, each ends in a refund or a lost dispute.
     for i, acct in enumerate(RING_ACCOUNTS[:3]):
         at = start + timedelta(days=8 + i * 5, hours=rng.randrange(0, 12))
-        o = payloads.order(merchant_id=MERCHANT_ID, payer_country="US", amount=Decimal("64.00") + i * 11,
+        o = payloads.order(merchant_id=merchant_id(), payer_country="US", amount=Decimal("64.00") + i * 11,
                            created_at=at, **acct, **RING_ADDRESS)
         orders.append(o)
         cap = o["purchase_units"][0]["payments"]["captures"][0]
@@ -143,19 +143,24 @@ def seed_history(now: datetime | None = None, seed: int = 42) -> dict:
                 capture_id=cap["id"], amount=cap["amount"]["value"], created_at=at + timedelta(days=6),
                 status="RESOLVED", outcome="RESOLVED_BUYER_FAVOUR", updated_at=at + timedelta(days=16)))
 
+    # Register every seeded object with the simulator too, so in sandbox mode the
+    # routing client knows these IDs are simulated and never sends them to PayPal.
     for o in orders:
+        MockPayPalClient.put("order", o["id"], o)
         ingest_order(o)
-    _ship_all(rng)
+    _ship_all(rng, [o["id"] for o in orders])
     for r in refunds:
         ingest_refund(r)
     for d in disputes:
+        MockPayPalClient.put("dispute", d["dispute_id"], d)
         ingest_dispute(d)
 
     # 30 days of history is scored with template text, so seeding doesn't spend AI quota;
     # live events (and the dispute copilot) use the configured AI provider.
     from django.test import override_settings
     with override_settings(AI_PROVIDER="template"):
-        for order in Order.objects.filter(seller__paypal_merchant_id=MERCHANT_ID).order_by("created_at"):
+        # Only the orders seeded now: real sandbox orders already have their own scores.
+        for order in Order.objects.filter(paypal_order_id__in=[o["id"] for o in orders]).order_by("created_at"):
             score_order(order)
 
     return {"orders": len(orders), "refunds": len(refunds), "disputes": len(disputes)}
@@ -165,7 +170,9 @@ def seed_history(now: datetime | None = None, seed: int = 42) -> dict:
 
 def _deliver(event: dict) -> service.Result:
     raw = json.dumps(event).encode()
-    return service.handle(raw, {"PAYPAL-TRANSMISSION-SIG": MOCK_VALID_SIGNATURE})
+    # The simulator's objects live in the mock store, so it always delivers with
+    # the mock client, even when the app runs in sandbox mode.
+    return service.handle(raw, {"PAYPAL-TRANSMISSION-SIG": MOCK_VALID_SIGNATURE}, client=MockPayPalClient())
 
 
 def _deliver_order(order_json: dict, at: datetime) -> service.Result:
@@ -179,7 +186,7 @@ def live_scenario(name: str, now: datetime | None = None) -> service.Result:
 
     if name == "normal":
         return _deliver_order(payloads.order(
-            merchant_id=MERCHANT_ID, payer_id=f"LIVEPAYER{now:%H%M%S}", email="megan.cole@gmail.com",
+            merchant_id=merchant_id(), payer_id=f"LIVEPAYER{now:%H%M%S}", email="megan.cole@gmail.com",
             given_name="Megan", surname="Cole", payer_country="US", amount="42.50", created_at=now,
             ship_line1="418 Willow Street", ship_city="Denver", ship_postal="80203", ship_state="CO",
             ship_country="US", phone="7205550123"), now)
@@ -187,7 +194,7 @@ def live_scenario(name: str, now: datetime | None = None) -> service.Result:
     if name == "scammer":
         # Brand-new buyer, 10x the usual basket, freight forwarder, no Seller Protection.
         return _deliver_order(payloads.order(
-            merchant_id=MERCHANT_ID, payer_id="SCAMPAYER0001", email="deals.hunter7@mailinator.com",
+            merchant_id=merchant_id(), payer_id="SCAMPAYER0001", email="deals.hunter7@mailinator.com",
             given_name="Chris", surname="Doyle", payer_country="CA", amount="480.00", created_at=now,
             ship_line1="ParcelHop Forwarding", ship_line2="1200 Commerce Dr Ste 410-88231",
             ship_city="Wilmington", ship_postal="19801", ship_state="DE", ship_country="US",
@@ -196,13 +203,13 @@ def live_scenario(name: str, now: datetime | None = None) -> service.Result:
     if name == "ring":
         # Fourth ring account: same address and email stem as three accounts that refunded/disputed.
         return _deliver_order(payloads.order(
-            merchant_id=MERCHANT_ID, payer_country="GB", amount="89.00", created_at=now,
+            merchant_id=merchant_id(), payer_country="GB", amount="89.00", created_at=now,
             seller_protection="NOT_ELIGIBLE", **RING_ACCOUNTS[3], **RING_ADDRESS), now)
 
     if name == "dispute":
         # "Item not received" on a delivered, protected order. The buyer message
         # contains a prompt-injection attempt the dispute copilot must ignore.
-        capture = (Capture.objects.filter(order__seller__paypal_merchant_id=MERCHANT_ID,
+        capture = (Capture.objects.filter(order__seller__paypal_merchant_id=merchant_id(),
                                           seller_protection_status="ELIGIBLE",
                                           order__buyer__payer_id__startswith="NORMALPAYER",
                                           order__shipment__status="DELIVERED",

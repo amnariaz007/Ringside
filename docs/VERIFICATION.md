@@ -181,3 +181,64 @@ Five reviewers (guardrails, workflow correctness, evidence and rules, frontend, 
 - **Sandbox Disputes API calls are unverified**; they need credentials, expected tonight. The request shapes are unit-tested.
 - **The safety check is a strong backstop, not a proof.** A model could still write misleading prose that uses only grounded numbers and no concession words. The seller's review and approval remain the final control, by design.
 - **No login yet; the copilot GET prepares a case as a side effect.** Both are planned for the deploy day.
+
+## Day 4 (9 Nov): VPS deploy
+
+Checked against the live site, https://ringside.duckdns.org:
+
+| Check | Result |
+|---|---|
+| `manage.py check --deploy` | 0 errors; 2 warnings (HSTS, SSL redirect), acceptable because Caddy serves this hostname on HTTPS only |
+| `GET /api/health/` | 200 `{"ok": true, "paypal_mode": "mock", "ai_provider": "gemini"}` |
+| `/`, SPA deep link `/disputes`, `/static/admin/css/base.css` | 200 |
+| `GET /api/dashboard/` without login | 403 (auth enforced) |
+| Login with CSRF token and `Origin` header, then dashboard, disputes, rings | 200 each; dashboard shows the 63 seeded orders |
+| TLS | Let's Encrypt certificate, valid to 7 Feb 2027 |
+| Other apps on the VPS | Caddy config validated before reload; containers and nginx untouched |
+
+### Not verified yet
+
+- Login and the pages in a real browser (only verified with curl).
+- A Gemini call from the VPS (the key is set; the template fallback covers failures).
+- PayPal webhooks to the live URL: `PAYPAL_WEBHOOK_ID` is empty and `PAYPAL_MODE` is `mock` on the server, as in local `.env`.
+
+**Domain switch (9 Nov):** `ringside.duckdns.org` → 173.212.238.249; Let's Encrypt certificate for that name (valid to 7 Feb 2027); health, `/`, `/disputes`, login and dashboard return 200; the old sslip.io URL returns 301 to the same path on the new domain.
+
+## Day 4b (9 Nov): real PayPal sandbox flow
+
+### Automated checks
+- Backend: **238 tests pass**, 62 of them new in `tests/test_sandbox_flow.py`. No test calls PayPal: a `no_network` fixture fails any HTTP call, and the conftest blanks the PayPal keys.
+- `makemigrations --check`: no changes pending (new migration `core/0004_shipment_paypal_tracking_sent_at`).
+- Frontend: `tsc -b` clean, `vite build` OK.
+- Sandbox keys: an OAuth token comes back from `api-m.sandbox.paypal.com` (only OK or failed was printed).
+
+### Independent review (4 reviewers, each finding checked by a separate verifier)
+
+| Confirmed finding | Fix |
+|---|---|
+| After capture, a failed order lookup returned 202 with no order ID, so the bag emptied with no confirmation | 202 now carries `order_id` and `PENDING`, and the page shows a "processing, don't pay again" state |
+| An order said COMPLETED while its capture was PENDING or DECLINED | The capture status is checked: DECLINED gives 402 with retry, PENDING gives 202 pending, and the paid state shows only for COMPLETED |
+| An ingest crash after capture would return 500 to a buyer who had paid | Caught and recorded in the audit log; the buyer still gets the success response |
+| The tracking `pattern` was invalid under the browser's `v` flag, and the placeholder had spaces the server rejected | Valid pattern; spaces stripped and uppercased on both client and server |
+| Editing a shipment reset `shipped_at` and `delivered_at` to now, which changed dispute evidence | Existing dates are kept unless new ones are sent |
+| A failed tracking push was never retried | `Shipment.paypal_tracking_sent_at`: an empty value means the next save resends |
+| "Mark as shipped" re-drafted FAILED cases, which skipped the submit reconciliation | Only READY and NEEDS_DATA cases are re-drafted |
+| Two events, or an event plus `--sync`, could prepare one case twice | `prepare()` returns early when another caller is preparing a fresh PREPARING case |
+| A wrong `PAYPAL_MERCHANT_ID` relinked the shop; correcting it created an empty second shop | `connect_paypal --discover` stops on a mismatch, and relinking falls back to the single Juniper Lane seller |
+| A concurrent first contact could hit IntegrityError on seller creation | Create inside a savepoint, falling back to get |
+| Rate limits used a per-worker LocMemCache (3 gunicorn workers) | Production uses a shared FileBasedCache (`CACHE_DIR`, default `backend/.cache/`) |
+| A VPS seeded by the old code has no simulator registrations | Deploy step: `seed_demo --reset` before switching to sandbox |
+| Cancel in the shipment editor kept unsaved edits | Cancel resets the form |
+| createOrder errors were hidden behind PayPal's generic message | The server's reason is shown |
+
+**Rejected by the verifiers:**
+- X-Forwarded-For spoofing: Caddy sets the header.
+- Capture request-ID replay after a decline: unconfirmed, and declines are rare in the sandbox.
+- Latin-1 webhook body: urllib3 2.x already sends UTF-8. Hardened anyway: the body is sent as bytes.
+- `require-evidence` preconditions: PayPal's 422 is surfaced.
+- Buttons clickable during capture.
+- SQLite double scoring.
+
+### Not verified yet
+- **A real sandbox checkout, webhook delivery, tracking push and dispute.** These need the deploy, the webhook ID and the merchant ID on the VPS.
+- **The shop page in a real browser.** The PayPal JS SDK renders only with sandbox mode on.

@@ -142,3 +142,5 @@ class Shipment(models.Model):
     # Shipped to the address on the PayPal transaction (required for Seller Protection).
     to_paypal_address = models.BooleanField(default=True)
     signature_confirmed = models.BooleanField(default=False)
+    # When PayPal accepted this tracking number; empty means "send it again on the next save".
+    paypal_tracking_sent_at = models.DateTimeField(null=True, blank=True)

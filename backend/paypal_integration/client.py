@@ -2,7 +2,8 @@
 One PayPal client interface, two implementations.
 
     PAYPAL_MODE=mock     MockPayPalClient: reads PayPal-shaped JSON from the DB
-    PAYPAL_MODE=sandbox  SandboxPayPalClient: real HTTP calls to the sandbox
+    PAYPAL_MODE=sandbox  RoutingClient: real HTTP calls to the sandbox, except for
+                         records the demo simulator created (those stay simulated)
 
 The rest of the app only ever calls get_client(), so switching to the real
 sandbox is a settings change, not a rewrite. Payload shapes follow the PayPal
@@ -48,6 +49,10 @@ class PayPalClient(Protocol):
     def provide_evidence(self, dispute_id: str, evidences: list[dict]) -> dict: ...
     def accept_claim(self, dispute_id: str, note: str) -> dict: ...
     def make_offer(self, dispute_id: str, amount: str, currency: str, note: str) -> dict: ...
+    # Checkout and fulfilment (the Juniper Lane shop and "Mark as shipped").
+    def create_order(self, purchase_unit: dict) -> dict: ...
+    def capture_order(self, order_id: str) -> dict: ...
+    def add_tracking(self, order_id: str, capture_id: str, carrier: str, tracking_number: str) -> dict: ...
 
 
 def proof_of_fulfillment(carrier: str, tracking_number: str, notes: str) -> dict:
@@ -114,6 +119,19 @@ class MockPayPalClient:
                                     offer={"seller_offered_amount": {"currency_code": currency, "value": amount},
                                            "offer_type": "REFUND"})
 
+    def create_order(self, purchase_unit: dict) -> dict:
+        raise PayPalError("checkout needs PAYPAL_MODE=sandbox: the simulator has no buyer to approve a payment")
+
+    def capture_order(self, order_id: str) -> dict:
+        raise PayPalError("checkout needs PAYPAL_MODE=sandbox")
+
+    def add_tracking(self, order_id: str, capture_id: str, carrier: str, tracking_number: str) -> dict:
+        data = self.get_order(order_id)
+        data.setdefault("trackers", []).append(
+            {"capture_id": capture_id, "carrier": carrier, "tracking_number": tracking_number})
+        self.put("order", order_id, data)
+        return {"id": order_id, "simulated": True}
+
     # Helpers used by the simulator and tests (not part of the real interface).
     @staticmethod
     def put(kind: str, paypal_id: str, data: dict) -> None:
@@ -121,10 +139,7 @@ class MockPayPalClient:
 
 
 class SandboxPayPalClient:
-    """
-    Real sandbox client. Written against the docs; NOT yet run against PayPal
-    because the developer account is pending. See docs/VERIFICATION.md.
-    """
+    """Real sandbox client: HTTP calls to api-m.sandbox.paypal.com (or PAYPAL_API_BASE)."""
 
     mode = "sandbox"
     _token: str = ""
@@ -188,6 +203,32 @@ class SandboxPayPalClient:
             "offer_type": "REFUND",
         })
 
+    # --- Checkout (Orders v2) ----------------------------------------------
+    def create_order(self, purchase_unit: dict) -> dict:
+        return self._request("POST", "/v2/checkout/orders", json={"intent": "CAPTURE", "purchase_units": [purchase_unit]},
+                             headers={"Prefer": "return=representation"})
+
+    def capture_order(self, order_id: str) -> dict:
+        # The request id makes a retried capture safe: PayPal returns the first result.
+        return self._request("POST", f"/v2/checkout/orders/{order_id}/capture",
+                             headers={"Prefer": "return=representation", "PayPal-Request-Id": f"capture-{order_id}"})
+
+    def add_tracking(self, order_id: str, capture_id: str, carrier: str, tracking_number: str) -> dict:
+        return self._request("POST", f"/v2/checkout/orders/{order_id}/track", json={
+            "capture_id": capture_id, "tracking_number": tracking_number, "carrier": carrier, "notify_payer": False,
+        })
+
+    # --- Sandbox-only dispute controls (PayPal rejects these in production) --
+    def require_evidence(self, dispute_id: str) -> dict:
+        """Move a sandbox dispute to the stage where PayPal waits for the seller's evidence."""
+        return self._request("POST", f"/v1/customer/disputes/{dispute_id}/require-evidence",
+                             json={"action": "SELLER_EVIDENCE"})
+
+    def adjudicate(self, dispute_id: str, outcome: str) -> dict:
+        """Ask the sandbox to rule on a dispute under review: SELLER_FAVOR or BUYER_FAVOR."""
+        return self._request("POST", f"/v1/customer/disputes/{dispute_id}/adjudicate",
+                             json={"adjudication_outcome": outcome})
+
     def verify_webhook_signature(self, headers: dict[str, str], raw_body: bytes) -> bool:
         if not settings.PAYPAL_WEBHOOK_ID:
             raise PayPalError("PAYPAL_WEBHOOK_ID must be set to verify webhooks")
@@ -205,11 +246,62 @@ class SandboxPayPalClient:
             "webhook_id": settings.PAYPAL_WEBHOOK_ID,
         })[:-1]
         body = f'{prefix}, "webhook_event": {raw_body.decode()}}}'
-        result = self._request("POST", "/v1/notifications/verify-webhook-signature", data=body)
+        result = self._request("POST", "/v1/notifications/verify-webhook-signature", data=body.encode("utf-8"))
         return result.get("verification_status") == "SUCCESS"
+
+
+class RoutingClient:
+    """
+    Sandbox mode with a seeded demo shop. The 30-day history and the fraud ring
+    were made by the simulator, so PayPal's sandbox has never heard of their
+    IDs. Calls about those records go to the mock; everything else (real
+    sandbox checkouts, disputes and webhook signatures) goes to PayPal.
+    """
+
+    mode = "sandbox"
+
+    def __init__(self, sandbox: SandboxPayPalClient | None = None, mock: MockPayPalClient | None = None):
+        self.sandbox = sandbox or SandboxPayPalClient()
+        self.mock = mock or MockPayPalClient()
+
+    def _for(self, kind: str, paypal_id: str):
+        simulated = MockPayPalObject.objects.filter(kind=kind, paypal_id=paypal_id).exists()
+        return self.mock if simulated else self.sandbox
+
+    def get_order(self, order_id: str) -> dict:
+        return self._for("order", order_id).get_order(order_id)
+
+    def get_dispute(self, dispute_id: str) -> dict:
+        return self._for("dispute", dispute_id).get_dispute(dispute_id)
+
+    def verify_webhook_signature(self, headers: dict[str, str], raw_body: bytes) -> bool:
+        # Anything arriving over HTTP must be signed by PayPal. The simulator
+        # delivers in-process with its own mock client and never reaches here.
+        return self.sandbox.verify_webhook_signature(headers, raw_body)
+
+    def provide_evidence(self, dispute_id: str, evidences: list[dict]) -> dict:
+        return self._for("dispute", dispute_id).provide_evidence(dispute_id, evidences)
+
+    def accept_claim(self, dispute_id: str, note: str) -> dict:
+        return self._for("dispute", dispute_id).accept_claim(dispute_id, note)
+
+    def make_offer(self, dispute_id: str, amount: str, currency: str, note: str) -> dict:
+        return self._for("dispute", dispute_id).make_offer(dispute_id, amount, currency, note)
+
+    def create_order(self, purchase_unit: dict) -> dict:
+        return self.sandbox.create_order(purchase_unit)
+
+    def capture_order(self, order_id: str) -> dict:
+        return self.sandbox.capture_order(order_id)
+
+    def add_tracking(self, order_id: str, capture_id: str, carrier: str, tracking_number: str) -> dict:
+        return self._for("order", order_id).add_tracking(order_id, capture_id, carrier, tracking_number)
+
+    def is_simulated(self, kind: str, paypal_id: str) -> bool:
+        return self._for(kind, paypal_id) is self.mock
 
 
 def get_client() -> PayPalClient:
     if settings.PAYPAL_MODE == "sandbox":
-        return SandboxPayPalClient()
+        return RoutingClient()
     return MockPayPalClient()

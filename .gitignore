@@ -14,3 +14,6 @@ dist/
 
 # Internal hackathon strategy (names competitors); kept out of the public repo.
 docs/COMPETITIVE_STRATEGY.md
+
+# Production file cache (rate limits)
+backend/.cache/

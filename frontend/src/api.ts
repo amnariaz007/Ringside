@@ -43,6 +43,43 @@ export interface OrderDetail extends OrderRow {
   assessment: Assessment | null
   refunds: { paypal_refund_id: string; amount: string; created_at: string }[]
   disputes: { id: number; paypal_dispute_id: string; status: string; reason: string }[]
+  shipment: Shipment | null
+  can_ship: boolean
+}
+
+export interface Shipment {
+  carrier: string
+  tracking_number: string
+  status: 'SHIPPED' | 'IN_TRANSIT' | 'DELIVERED'
+  shipped_at: string
+  delivered_at: string | null
+  to_paypal_address: boolean
+  signature_confirmed: boolean
+}
+
+export interface ShipmentInput {
+  carrier: string
+  tracking_number: string
+  delivered: boolean
+  to_paypal_address: boolean
+  signature_confirmed: boolean
+}
+
+export interface ShopProduct {
+  sku: string
+  name: string
+  colour: string
+  price: string
+  blurb: string
+  swatch: string
+}
+
+export interface ShopInfo {
+  shop: { name: string; location: string }
+  currency: string
+  products: ShopProduct[]
+  checkout_enabled: boolean
+  paypal_client_id: string
 }
 
 export type CopilotAction = 'FIGHT' | 'ACCEPT' | 'PARTIAL_REFUND'
@@ -257,7 +294,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     } catch {
       /* body wasn't JSON */
     }
-    if (res.status === 403 && !path.startsWith('/auth/')) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
+    if (res.status === 403 && !path.startsWith('/auth/') && !path.startsWith('/shop/')) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
     throw new ApiError(res.status, detail, body)
   }
   return res.json() as Promise<T>
@@ -273,10 +310,19 @@ export const api = {
   login: (username: string, password: string) =>
     post<{ authenticated: boolean; user: SessionUser }>('/auth/login/', { username, password }),
   logout: () => post<{ authenticated: boolean }>('/auth/logout/'),
-  health: () => get<{ ok: boolean; paypal_mode: string; ai_provider: string }>('/health/'),
+  health: () => get<{
+    ok: boolean; paypal_mode: string; ai_provider: string
+    paypal_setup: { keys: boolean; webhook_id: boolean; merchant_id: boolean }
+  }>('/health/'),
   dashboard: () => get<Dashboard>('/dashboard/'),
   orders: (level?: Level) => get<Page<OrderRow>>(`/orders/?limit=1000${level ? `&level=${level}` : ''}`),
   order: (id: string | number) => get<OrderDetail>(`/orders/${id}/`),
+  ship: (id: string | number, body: ShipmentInput) =>
+    post<OrderDetail & { paypal_tracking: 'sent' | 'simulated' | 'failed' | 'unchanged' }>(`/orders/${id}/shipment/`, body),
+  shop: () => get<ShopInfo>('/shop/'),
+  shopCreateOrder: (items: { sku: string; quantity: number }[]) => post<{ id: string }>('/shop/orders/', { items }),
+  shopCapture: (orderId: string) =>
+    post<{ status: 'COMPLETED' | 'PENDING'; order_id?: string; detail?: string }>(`/shop/orders/${encodeURIComponent(orderId)}/capture/`),
   disputes: () => get<Page<DisputeRow>>('/disputes/?limit=200'),
   rings: () => get<{ results: Ring[] }>('/graph/rings/'),
   buyerGraph: (payerId: string) => get<BuyerGraph>(`/graph/buyers/${encodeURIComponent(payerId)}/`),

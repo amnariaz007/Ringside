@@ -7,6 +7,9 @@ def offline_ai(settings):
     settings.AI_PROVIDER = "template"
     settings.GEMINI_API_KEY = ""
     settings.PAYPAL_MODE = "mock"
+    settings.PAYPAL_CLIENT_ID = settings.PAYPAL_CLIENT_SECRET = ""
+    settings.PAYPAL_WEBHOOK_ID = settings.PAYPAL_MERCHANT_ID = ""
+    settings.PAYPAL_API_BASE = "https://api-m.sandbox.paypal.com"
 
 @pytest.fixture
 def seller(django_user_model):

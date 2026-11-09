@@ -18,10 +18,13 @@ const Rings = lazy(() => import('./pages/Rings'))
 const Orders = lazy(() => import('./pages/Orders'))
 const Disputes = lazy(() => import('./pages/Disputes'))
 const Audit = lazy(() => import('./pages/Audit'))
+const Shop = lazy(() => import('./pages/Shop'))
 
 const wait = (el: React.ReactNode) => <Suspense fallback={<div className="skeleton" />}>{el}</Suspense>
 
 const router = createBrowserRouter([
+  // The buyer-facing store: public, outside the seller login.
+  { path: '/shop', element: wait(<Shop />) },
   {
     path: '/',
     element: <App />,

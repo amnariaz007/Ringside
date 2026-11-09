@@ -260,3 +260,61 @@ Rules-based recommendation with evidence chips · an editable draft (source labe
 | Overview | Navy hero with a plain-English summary of what needs attention, quick actions, and a ledger row of figures |
 | AG Grid | `grid.tsx` registers Community modules once and defines `ledgerTheme` (`themeQuartz.withParams`). Orders: risk ring, buyer, "Why" chips, route, protection, amount; quick search; level filter; CSV export; pagination. Disputes: copilot state and deadline cells. Audit: actor filter, search, CSV export |
 | Performance | Orders, Disputes, Audit and Rings load on demand; the main bundle is 345 kB |
+
+## Day 4 (9 Nov): live on the VPS ✅
+
+**URL:** https://ringside.duckdns.org (demo login: `DEMO_USERNAME` / `DEMO_PASSWORD` from `.env`)
+
+| Piece | Where on the VPS (`root@173.212.238.249`) |
+|---|---|
+| Code | `/opt/payguard/app` (git-tracked files, rsynced) |
+| Frontend build | `/opt/payguard/www` (`frontend/dist`) |
+| Python venv | `/opt/payguard/venv` (requirements.txt + gunicorn 23.0.0) |
+| Env file | `/opt/payguard/payguard.env` (mode 600; `DJANGO_ENV=production`, secret key and PII salt generated on the server, demo login, Gemini, PayPal) |
+| Database | `/opt/payguard/data/db.sqlite3` (migrated, demo user created, `seed_demo` run) |
+| Service | `payguard.service`: gunicorn, 3 workers, `127.0.0.1:8010`, runs as user `payguard` |
+| Web | Caddy block appended to `/etc/caddy/Caddyfile` (backup `Caddyfile.bak-*` next to it): `/api/*` and `/admin*` → gunicorn, `/static/*` → `staticfiles`, everything else → the SPA with an `index.html` fallback |
+
+**Redeploy after a change:**
+
+```bash
+cd frontend && npm run build && cd ..
+git ls-files > /tmp/files.txt
+rsync -az --files-from=/tmp/files.txt ./ root@173.212.238.249:/opt/payguard/app/
+rsync -az --delete frontend/dist/ root@173.212.238.249:/opt/payguard/www/
+ssh root@173.212.238.249 'chown -R payguard:payguard /opt/payguard/app && cd /opt/payguard/app/backend && \
+  sudo -u payguard env $(grep -v "^#" /opt/payguard/payguard.env | xargs -d "\n") /opt/payguard/venv/bin/python manage.py migrate --noinput && \
+  sudo -u payguard env $(grep -v "^#" /opt/payguard/payguard.env | xargs -d "\n") /opt/payguard/venv/bin/python manage.py collectstatic --noinput && \
+  systemctl restart payguard'
+```
+
+Logs: `journalctl -u payguard -f`.
+
+## Day 4b (9 Nov): real PayPal sandbox flow
+
+Sandbox keys work (an OAuth token comes back). Before real sandbox events could reach the copilot, four things had to change.
+
+| Gap | Fix | Where |
+|---|---|---|
+| Nowhere for a buyer to pay | **Juniper Lane storefront** at `/shop`: public, no login. Four products, a bag, PayPal JS SDK buttons. The server prices the cart, creates the order and captures it with our sandbox keys. The paid order is ingested and scored at once, and the capture webhook later does the same thing idempotently. The buyer never sees a risk score. | `backend/shop/`, `frontend/src/pages/Shop.tsx` |
+| Real orders carry the real merchant ID, not `JUNIPERLANE01` | `PAYPAL_MERCHANT_ID` setting. The placeholder seller is relinked to it on first contact or by `connect_paypal`, so real orders join the seeded history and ring | `paypal_integration/sellers.py`, `ingest.py` |
+| Seeded (simulated) records would be sent to PayPal in sandbox mode | `RoutingClient`: IDs in the mock store go to the simulator, everything else to the sandbox. Webhook signatures over HTTP are always checked by PayPal. The simulator delivers in-process with its own mock client. The seed registers its orders and disputes, and only ships or scores its own orders | `paypal_integration/client.py`, `demo.py` |
+| No tracking for real orders | **Mark as shipped** card on the order page: carrier, tracking, delivered or signed-for. Saves the `Shipment`, sends tracking to PayPal (`POST /v2/checkout/orders/{id}/track`), and re-prepares the copilot of any open dispute on that order | `core/shipping.py`, `OrderViewSet.shipment`, `OrderDetail.tsx` |
+
+Also:
+- **Copilot start:** the copilot now also starts when a dispute reaches `WAITING_FOR_SELLER_RESPONSE` through an *update* (sandbox disputes often start as inquiries).
+- **`manage.py connect_paypal [--discover]`:** checks the keys, webhook ID and merchant ID (yes/no only). `--discover` reads the business account's merchant ID from an unpaid $1 check order, then links the shop.
+- **`manage.py paypal_dispute <id> --sync | --require-evidence | --adjudicate seller|buyer`:** syncs a dispute now, or uses PayPal's sandbox-only dispute controls.
+- **`/api/health/`** adds `paypal_setup` with booleans only (keys, webhook ID, merchant ID).
+
+### Going live on the sandbox (VPS)
+
+1. Deploy this commit. The redeploy rsyncs `git ls-files`, so new files must be committed first.
+2. On the VPS, re-seed **before any real order**: `manage.py seed_demo --reset`. The old seed didn't register its records as simulated.
+3. PayPal Developer → app → **Webhooks → Add**:
+   - URL: `https://ringside.duckdns.org/api/webhooks/paypal/`
+   - Events: `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.REFUNDED`, `CUSTOMER.DISPUTE.CREATED`, `CUSTOMER.DISPUTE.UPDATED`, `CUSTOMER.DISPUTE.RESOLVED`
+4. In `/opt/payguard/payguard.env`:
+   - `PAYPAL_MODE=sandbox`, the client ID and secret, and `PAYPAL_WEBHOOK_ID`
+   - `PAYPAL_MERCHANT_ID`: run `connect_paypal --discover` to get it
+   - Then restart and run `connect_paypal`; it should say "Ready".

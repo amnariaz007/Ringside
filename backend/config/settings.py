@@ -124,6 +124,13 @@ CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").sp
 if DEBUG:
     # The Vite dev server on :5173 proxies /api to Django on :8000.
     CSRF_TRUSTED_ORIGINS += ["http://localhost:5173", "http://127.0.0.1:5173"]
+# Rate limits (login, shop) live in the cache. Production runs several gunicorn
+# workers, so they need a cache all workers share: a file cache on this one host.
+if IS_PRODUCTION:
+    CACHES = {"default": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": os.environ.get("CACHE_DIR", str(BASE_DIR / ".cache")),
+    }}
 LOGIN_ATTEMPTS_PER_WINDOW = 10
 LOGIN_WINDOW_SECONDS = 15 * 60
 
@@ -134,6 +141,9 @@ PAYPAL_MODE = os.environ.get("PAYPAL_MODE", "mock")
 PAYPAL_CLIENT_ID = os.environ.get("PAYPAL_CLIENT_ID", "")
 PAYPAL_CLIENT_SECRET = os.environ.get("PAYPAL_CLIENT_SECRET", "")
 PAYPAL_WEBHOOK_ID = os.environ.get("PAYPAL_WEBHOOK_ID", "")
+# The sandbox business account's merchant ID (its "Account ID"). Real orders are
+# matched to the demo shop through it. `manage.py connect_paypal` can find it.
+PAYPAL_MERCHANT_ID = os.environ.get("PAYPAL_MERCHANT_ID", "")
 PAYPAL_API_BASE = os.environ.get("PAYPAL_API_BASE", "https://api-m.sandbox.paypal.com")
 
 # "template" needs no key. "gemini" uses Google's Gemini API when GEMINI_API_KEY is set

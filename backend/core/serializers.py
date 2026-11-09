@@ -81,12 +81,25 @@ class OrderDetailSerializer(OrderListSerializer):
     is_reshipper = serializers.BooleanField(source="shipping_address.is_reshipper", default=False)
     refunds = serializers.SerializerMethodField()
     disputes = serializers.SerializerMethodField()
+    shipment = serializers.SerializerMethodField()
+    can_ship = serializers.SerializerMethodField()
 
     class Meta(OrderListSerializer.Meta):
         fields = OrderListSerializer.Meta.fields + [
             "status", "shipping_address", "is_reshipper", "seller_protection_advice", "assessment",
-            "refunds", "disputes",
+            "refunds", "disputes", "shipment", "can_ship",
         ]
+
+    def get_shipment(self, obj):
+        s = getattr(obj, "shipment", None)
+        if s is None:
+            return None
+        return {"carrier": s.carrier, "tracking_number": s.tracking_number, "status": s.status,
+                "shipped_at": s.shipped_at, "delivered_at": s.delivered_at,
+                "to_paypal_address": s.to_paypal_address, "signature_confirmed": s.signature_confirmed}
+
+    def get_can_ship(self, obj):
+        return any(c.status == "COMPLETED" for c in obj.captures.all())
 
     def get_seller_protection_advice(self, obj):
         return SELLER_PROTECTION_ADVICE.get(self.get_seller_protection(obj), SELLER_PROTECTION_ADVICE[""])

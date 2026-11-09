@@ -84,4 +84,7 @@ def test_order_detail_includes_findings(seeded, client):
 
 
 def test_health_reports_modes(client):
-    assert client.get("/api/health/").json() == {"ok": True, "paypal_mode": "mock", "ai_provider": "template"}
+    assert client.get("/api/health/").json() == {
+        "ok": True, "paypal_mode": "mock", "ai_provider": "template",
+        "paypal_setup": {"keys": False, "webhook_id": False, "merchant_id": False},
+    }

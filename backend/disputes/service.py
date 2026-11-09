@@ -18,6 +18,7 @@ State machine (DisputeCase.status):
 
 from __future__ import annotations
 
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
@@ -95,10 +96,15 @@ def prepare(dispute: Dispute, *, force: bool = False) -> DisputeCase:
     unless force=True; submitted cases are never touched.
     """
     with transaction.atomic():
-        case, _ = DisputeCase.objects.select_for_update().get_or_create(dispute=dispute)
+        case, created = DisputeCase.objects.select_for_update().get_or_create(dispute=dispute)
         if case.status in {"SUBMITTING", "SUBMITTED"}:
             return case
         if case.status in {"READY", "FAILED"} and not force:
+            return case
+        # Another request is preparing this case right now (two webhooks, or a
+        # webhook and --sync). A PREPARING case older than 5 minutes is stuck and may be redone.
+        if (case.status == "PREPARING" and not created and not force
+                and case.updated_at > timezone.now() - timedelta(minutes=5)):
             return case
         if dispute.order_id is None:
             # No order means no evidence: don't guess a recommendation.

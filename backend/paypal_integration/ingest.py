@@ -108,10 +108,10 @@ def ingest_order(order_json: dict) -> tuple[Order, bool]:
     """Store an Orders v2 order and its captures. Returns (order, created)."""
     unit = order_json["purchase_units"][0]
     merchant_id = unit.get("payee", {}).get("merchant_id", "")
-    try:
-        seller = Seller.objects.get(paypal_merchant_id=merchant_id)
-    except Seller.DoesNotExist as exc:
-        raise MissingDependency(f"unknown seller merchant_id={merchant_id!r}") from exc
+    from .sellers import seller_for
+    seller = seller_for(merchant_id)
+    if seller is None:
+        raise MissingDependency(f"unknown seller merchant_id={merchant_id!r}")
 
     created_at = _dt(order_json["create_time"])
     amount, currency = _money(unit["amount"])

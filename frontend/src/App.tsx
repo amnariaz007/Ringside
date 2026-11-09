@@ -41,6 +41,7 @@ function Shell() {
           <div className="shop-card">
             <strong>Juniper Lane Apparel</strong>
             <span>Austin, Texas · USD</span>
+            <a href="/shop" target="_blank" rel="noreferrer">Open the shop ↗</a>
           </div>
           {health.data && (
             <span className="env" title="Simulated data is labelled honestly; sandbox mode calls PayPal's sandbox API.">

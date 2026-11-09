@@ -19,6 +19,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from audit.models import record
+from core.models import Order
 from paypal_integration.client import WEBHOOK_HEADERS, PayPalNotFound, get_client
 from paypal_integration.ingest import MissingDependency, ingest_dispute, ingest_order, ingest_refund, redact
 from risk.engine import score_order
@@ -40,14 +41,19 @@ class Result:
     message: str
 
 
-def handle(raw_body: bytes, headers: dict[str, str]) -> Result:
+def handle(raw_body: bytes, headers: dict[str, str], client=None) -> Result:
+    """
+    Verify, store and process one PayPal webhook. `client` is only passed by the
+    in-process demo simulator (a mock client); HTTP deliveries always use
+    get_client(), so in sandbox mode they must carry a real PayPal signature.
+    """
     try:
         event = json.loads(raw_body)
         event_id, event_type = event["id"], event["event_type"]
     except (ValueError, KeyError, TypeError):
         return Result(400, "malformed event")
 
-    client = get_client()
+    client = client or get_client()
     headers = {k.upper(): v for k, v in headers.items()}
     verified = client.verify_webhook_signature({h: headers.get(h, "") for h in WEBHOOK_HEADERS}, raw_body)
 
@@ -100,9 +106,8 @@ def _process(event: dict, client) -> str:
         order_id = resource.get("supplementary_data", {}).get("related_ids", {}).get("order_id")
         if not order_id:
             raise MissingDependency("capture event has no related order_id")
-        order, _ = ingest_order(client.get_order(order_id))
-        if not order.assessments.exists():
-            assessment = score_order(order)
+        order, assessment = ingest_and_score(client.get_order(order_id))
+        if assessment:
             return f"order {order.paypal_order_id} scored {assessment.score} ({assessment.level})"
         return f"order {order.paypal_order_id} already scored"
 
@@ -112,16 +117,39 @@ def _process(event: dict, client) -> str:
         return f"refund {refund.paypal_refund_id} recorded"
 
     # Disputes: re-fetch the full object; webhook resources can be partial.
-    dispute, created = ingest_dispute(client.get_dispute(resource["dispute_id"]))
+    dispute = apply_dispute(client.get_dispute(resource["dispute_id"]))
+    return f"dispute {dispute.paypal_dispute_id} {dispute.status}"
+
+
+def ingest_and_score(order_json: dict):
+    """
+    Store a paid order and score it once. Used by the capture webhook and by the
+    shop right after checkout, whichever comes first. Returns (order, new
+    assessment or None if it was already scored).
+    """
+    order, _ = ingest_order(order_json)
+    with transaction.atomic():
+        locked = Order.objects.select_for_update().get(pk=order.pk)
+        if locked.assessments.exists():
+            return order, None
+        return order, score_order(locked)
+
+
+def apply_dispute(dispute_json: dict):
+    """Store a dispute and start the copilot when PayPal is waiting for the seller."""
+    dispute, created = ingest_dispute(dispute_json)
     record(
         "paypal", "dispute.created" if created else "dispute.updated", obj=dispute,
         paypal_id=dispute.paypal_dispute_id, status=dispute.status, reason=dispute.reason,
     )
+    case_status = getattr(getattr(dispute, "case", None), "status", None)
     waiting = dispute.status == "WAITING_FOR_SELLER_RESPONSE"
-    needs_data = getattr(getattr(dispute, "case", None), "status", "") == "NEEDS_DATA" and dispute.order_id
-    if waiting and (event_type == "CUSTOMER.DISPUTE.CREATED" or needs_data):
+    # Start when the seller first has to act: on arrival, or later if the
+    # dispute only reached this stage after an inquiry (common in the sandbox),
+    # or again once a dispute that was missing its order can be linked.
+    if waiting and (case_status is None or (case_status == "NEEDS_DATA" and dispute.order_id)):
         _start_copilot(dispute)
-    return f"dispute {dispute.paypal_dispute_id} {dispute.status}"
+    return dispute
 
 
 def _start_copilot(dispute) -> None:

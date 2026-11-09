@@ -148,3 +148,25 @@ Two research runs finished today. The full strategy is in [COMPETITIVE_STRATEGY.
 | **Production guard for any host** | `DJANGO_ENV=production` refuses to start with debug on or with development secrets |
 
 **Prize plan now:** one main prize or honourable mention (Overall, Most Impactful, Most Creative, or Best Use of PayPal + AI), plus **AG Grid** as the sponsor prize.
+
+## 9. Day 4 decisions (9 Nov): VPS deploy
+
+| Decision | Why |
+|---|---|
+| **Deploy to the existing Contabo VPS** (`vmi3097504`, 173.212.238.249) | 4 vCPU, 7.8 GiB RAM (4.7 GiB free), 120 GB disk free, load ≈ 0.4. Plenty for one Django app plus a static build. It already hosts four other apps, so PayGuard is added beside them and nothing they use is changed |
+| **systemd + gunicorn, not Docker** | The project has no Dockerfiles, and a venv and one unit file are faster to ship and debug before the deadline. Docker remains an option later |
+| **Caddy for TLS; nginx left alone** | Caddy already owns :443 and issues certificates via TLS-ALPN; nginx owns :80 for another app. One Caddy site block serves the React build and proxies `/api` and `/admin` |
+| **Hostname `ringside.duckdns.org`** | First deployed on `payguard.173-212-238-249.sslip.io`, which put the server IP in the URL. Moved to a DuckDNS name the same day (DuckDNS already serves the other apps here). The old address 301-redirects to the new one |
+| **SQLite on the VPS** | A single host and demo-scale traffic; the file lives in `/opt/payguard/data/`. Postgres only if it is ever needed |
+
+**Risk:** plain `http://` on this hostname reaches nginx's default site (another app), not PayGuard. Always share the `https://` link.
+
+## 10. Day 4b decisions (9 Nov): real sandbox flow
+
+| Decision | Why |
+|---|---|
+| **A public Juniper Lane storefront inside the same app (`/shop`)** | A real sandbox buyer needs somewhere to pay. One build and one domain keep it simple. It is clearly marked as a sandbox store, and the buyer never sees risk data |
+| **Prices and totals computed on the server** | A buyer can't change the price by editing the request. Orders are created and captured with our keys, not by the browser SDK |
+| **Keep the seeded history next to real orders (`RoutingClient`)** | The ring, risk history and dashboard need 30 days of data that one evening of sandbox testing can't produce. Each record goes to the PayPal it came from. The simulated history is labelled honestly in the README and video |
+| **"Mark as shipped" sends tracking to PayPal** | Tracking is the core evidence for item-not-received disputes and a condition of Seller Protection. Sending it to PayPal shows deeper PayPal use |
+| **Sandbox-only dispute controls exposed as a command, not in the UI** | They exist only in the sandbox. Keeping them out of the seller UI avoids suggesting a seller can make PayPal rule |

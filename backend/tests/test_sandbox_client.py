@@ -46,7 +46,7 @@ def test_verify_splices_raw_body_unchanged(sandbox):
          mock.patch("requests.request", return_value=ok({"verification_status": "SUCCESS"})) as req:
         assert sandbox.verify_webhook_signature(HEADERS, raw) is True
     sent = req.call_args.kwargs["data"]
-    assert raw.decode() in sent
+    assert isinstance(sent, bytes) and raw in sent  # sent as UTF-8 bytes, raw body untouched
     body = json.loads(sent)
     assert body["webhook_id"] == "WH-123" and body["transmission_id"] == "tx-1"
     assert req.call_args.args[1].endswith("/v1/notifications/verify-webhook-signature")
