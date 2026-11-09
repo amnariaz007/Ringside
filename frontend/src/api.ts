@@ -45,6 +45,7 @@ export interface OrderDetail extends OrderRow {
   disputes: { id: number; paypal_dispute_id: string; status: string; reason: string }[]
   shipment: Shipment | null
   can_ship: boolean
+  items: { name: string; sku: string; quantity: string; unit_amount: string }[]
 }
 
 export interface Shipment {
@@ -72,6 +73,7 @@ export interface ShopProduct {
   price: string
   blurb: string
   swatch: string
+  image: string
 }
 
 export interface ShopInfo {
@@ -205,6 +207,7 @@ export interface Ring {
   stats: RingStats
   summary: string
   summary_source: string
+  summary_pending?: boolean
 }
 
 export type GraphNodeType = 'buyer' | 'order' | 'address' | 'phone' | 'email_pattern' | 'refund' | 'dispute'
@@ -231,6 +234,7 @@ export interface BuyerGraph {
   edges: GraphEdge[]
   summary: string
   summary_source: string
+  summary_pending?: boolean
 }
 
 export interface AuditRow {
@@ -311,9 +315,11 @@ export const api = {
     post<{ authenticated: boolean; user: SessionUser }>('/auth/login/', { username, password }),
   logout: () => post<{ authenticated: boolean }>('/auth/logout/'),
   health: () => get<{
-    ok: boolean; paypal_mode: string; ai_provider: string
+    ok: boolean; paypal_mode: string; ai_provider: string; demo_controls: boolean
     paypal_setup: { keys: boolean; webhook_id: boolean; merchant_id: boolean }
   }>('/health/'),
+  demoPlay: (scenario: 'normal' | 'scammer' | 'ring' | 'dispute') => post<{ detail: string; go: string }>(`/demo/${scenario}/`),
+  demoReset: () => post<{ detail: string; go: string }>('/demo/reset/', { confirm: true }),
   dashboard: () => get<Dashboard>('/dashboard/'),
   orders: (level?: Level) => get<Page<OrderRow>>(`/orders/?limit=1000${level ? `&level=${level}` : ''}`),
   order: (id: string | number) => get<OrderDetail>(`/orders/${id}/`),

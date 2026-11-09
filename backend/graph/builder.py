@@ -240,8 +240,8 @@ def _build(buyer_ids: list[int], orders: list[Order]) -> Cluster:
 
 
 def _summary(c: Cluster) -> dict:
-    text = get_provider().summarize_ring(c.stats.as_dict())
-    return {"summary": text.text, "summary_source": text.source}
+    from ai.summaries import ring_summary
+    return ring_summary(c.stats.as_dict())
 
 
 def find_rings(seller_id: int | None = None) -> list[dict]:
@@ -276,4 +276,4 @@ def buyer_graph(payer_id: str) -> dict | None:
             return {"payer_id": payer_id, "is_ring": len(buyer_ids) > 1, "stats": c.stats.as_dict(),
                     "nodes": c.nodes, "edges": c.edges, **_summary(c)}
     return {"payer_id": payer_id, "is_ring": False, "stats": RingStats().as_dict(), "nodes": [], "edges": [],
-            "summary": "This buyer has no orders yet.", "summary_source": "template"}
+            "summary": "This buyer has no orders yet.", "summary_source": "template", "summary_pending": False}

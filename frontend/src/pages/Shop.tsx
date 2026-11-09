@@ -52,15 +52,52 @@ function loadSdk(clientId: string, currency: string): Promise<PayPalNamespace> {
 type Cart = Record<string, number>
 const MAX_QTY = 5
 
-function Swatch({ product }: { product: ShopProduct }) {
+/* Order history lives in this browser only (the shop has no buyer accounts). */
+interface PastOrder {
+  id: string
+  at: string
+  pending: boolean
+  total: string
+  lines: { sku: string; name: string; colour: string; image: string; quantity: number; price: string }[]
+}
+const HISTORY_KEY = 'jl-orders'
+const pendingKey = (orderId: string) => `jl-pending:${orderId}`
+
+function readHistory(): PastOrder[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]')
+    return Array.isArray(value) ? (value as PastOrder[]) : []
+  } catch {
+    return []
+  }
+}
+
+function rememberOrder(orderId: string, pending: boolean, products: ShopProduct[]): PastOrder[] {
+  let history = readHistory()
+  try {
+    const cart = JSON.parse(sessionStorage.getItem(pendingKey(orderId)) ?? '{}') as Cart
+    const lines = products.filter((p) => (cart[p.sku] ?? 0) > 0).map((p) => ({
+      sku: p.sku, name: p.name, colour: p.colour, image: p.image, quantity: cart[p.sku], price: p.price,
+    }))
+    const total = lines.reduce((sum, l) => sum + Number(l.price) * l.quantity, 0).toFixed(2)
+    history = [{ id: orderId, at: new Date().toISOString(), pending, total, lines }, ...history.filter((o) => o.id !== orderId)].slice(0, 20)
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history))
+    sessionStorage.removeItem(pendingKey(orderId))
+  } catch {
+    /* storage unavailable (private mode): the purchase still succeeded */
+  }
+  return history
+}
+
+function ProductImage({ product }: { product: ShopProduct }) {
+  const [failed, setFailed] = useState(false)
   return (
-    <div className="swatch" style={{ background: product.swatch }} aria-hidden="true">
-      <svg viewBox="0 0 120 90" preserveAspectRatio="none">
-        {Array.from({ length: 9 }, (_, i) => (
-          <line key={i} x1={i * 15 - 20} y1="90" x2={i * 15 + 40} y2="0" stroke="#fff" strokeOpacity="0.07" strokeWidth="6" />
-        ))}
-      </svg>
-      <span>{product.colour}</span>
+    <div className="product-photo" style={failed ? { background: product.swatch } : undefined}>
+      {!failed && (
+        <img src={product.image} alt={`${product.name} in ${product.colour}`} loading="lazy" width={800} height={800}
+          onError={() => setFailed(true)} />
+      )}
+      <span className="product-tag">{product.colour}</span>
     </div>
   )
 }
@@ -86,9 +123,11 @@ function Checkout({ info, cart, onPaid }: { info: ShopInfo; cart: Cart; onPaid: 
             const items = Object.entries(cartRef.current).filter(([, q]) => q > 0).map(([sku, quantity]) => ({ sku, quantity }))
             try {
               const { id } = await api.shopCreateOrder(items)
+              // Kept across PayPal's full-page redirect, so the order history knows what was bought.
+              try { sessionStorage.setItem(pendingKey(id), JSON.stringify(cartRef.current)) } catch { /* ignore */ }
               return id
             } catch (e) {
-              // Show the server's reason (rate limit, sandbox off...) rather than PayPal's generic error.
+              // Show the server's reason (rate limit, checkout closed...) rather than PayPal's generic error.
               setError(e instanceof ApiError ? e.message : 'Could not start the checkout.')
               throw e
             }
@@ -120,9 +159,7 @@ function Checkout({ info, cart, onPaid }: { info: ShopInfo; cart: Cart; onPaid: 
 
   if (!info.checkout_enabled) {
     return (
-      <p className="notice small">
-        Checkout opens when Ringside runs with <code>PAYPAL_MODE=sandbox</code>. In mock mode, orders arrive through the simulator.
-      </p>
+      <p className="notice small">Online checkout is unavailable right now. Please check back soon.</p>
     )
   }
   return (
@@ -147,45 +184,92 @@ export default function Shop() {
   const total = lines.reduce((sum, { p, q }) => sum + Number(p.price) * q, 0)
   const setQty = (sku: string, q: number) => setCart((c) => ({ ...c, [sku]: Math.max(0, Math.min(MAX_QTY, q)) }))
   // Stable identity so the PayPal buttons aren't re-rendered on every cart change.
-  const onPaid = useMemo(() => (orderId: string, pending: boolean) => { setPaid({ orderId, pending }); setCart({}) }, [])
+  const [history, setHistory] = useState<PastOrder[]>(readHistory)
+  const productsRef = useRef<ShopProduct[]>([])
+  productsRef.current = info?.products ?? []
+  const onPaid = useMemo(() => (orderId: string, pending: boolean) => {
+    setHistory(rememberOrder(orderId, pending, productsRef.current))
+    setPaid({ orderId, pending })
+    setCart({})
+  }, [])
+
+  const count = lines.reduce((n, { q }) => n + q, 0)
+
+  // When the browser blocks PayPal's popup, PayPal uses a full-page redirect and
+  // sends the buyer back here with ?token=<order id>&PayerID=...; the page (and
+  // bag) has reloaded, so finish the payment from the URL ourselves.
+  const [finishing, setFinishing] = useState(false)
+  const [returnError, setReturnError] = useState('')
+  const finished = useRef(false)
+  useEffect(() => {
+    if (!info || finished.current) return
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
+    if (!token || !params.get('PayerID')) return
+    finished.current = true
+    window.history.replaceState(null, '', window.location.pathname)
+    setFinishing(true)
+    api.shopCapture(token)
+      .then((r) => onPaid(r.order_id ?? token, r.status === 'PENDING'))
+      .catch((e: unknown) => setReturnError(e instanceof Error ? e.message : 'The payment did not go through.'))
+      .finally(() => setFinishing(false))
+  }, [info, onPaid])
 
   return (
     <div className="store">
-      <div className="store-banner" role="note">
-        Sandbox store for the Ringside demo. Pay with a PayPal <b>sandbox</b> buyer account; no real money moves.
-      </div>
       <header className="store-head">
-        <div>
-          <span className="store-mark" aria-hidden="true">JL</span>
-          <div>
-            <strong>Juniper Lane Apparel</strong>
-            <span>{info?.shop.location ?? 'Austin, Texas'} · small-batch clothing</span>
-          </div>
+        <div className="store-head-inner">
+          <a className="store-brand" href="/shop">
+            <span className="store-mark" aria-hidden="true">JL</span>
+            <span>
+              <strong>Juniper Lane</strong>
+              <small>Apparel · Austin, Texas</small>
+            </span>
+          </a>
+          <nav className="store-nav" aria-label="Shop">
+            <a href="#catalogue">Autumn run</a>
+            {history.length > 0 && <a href="#orders">Your orders</a>}
+            <a href="#bag-title" className="store-bag-link">
+              Bag <span className="store-bag-count" aria-label={`${count} items`}>{count}</span>
+            </a>
+          </nav>
         </div>
       </header>
+
+      <section className="store-hero">
+        <div className="store-hero-inner">
+          <span className="eyebrow">Autumn run · small batch</span>
+          <h1>Made to be worn in.</h1>
+          <p>Four pieces cut and finished in our Austin workshop. Free tracked shipping across the US.</p>
+        </div>
+      </section>
 
       <main className="store-main">
         {state.error && <div className="notice notice-error" role="alert">The shop is closed right now: {state.error}</div>}
         {!info && !state.error && <div className="skeleton" aria-busy="true" />}
+        {finishing && <div className="notice" role="status">Confirming your payment with PayPal…</div>}
+        {returnError && <div className="notice notice-error" role="alert">{returnError}</div>}
         {info && (
           <div className="store-grid">
             <section aria-labelledby="catalogue">
-              <h1 id="catalogue" className="store-title">Made to be worn in.</h1>
-              <p className="muted store-sub">Four pieces from our autumn run, cut and finished in Austin.</p>
+              <div className="store-section-head">
+                <h2 id="catalogue">The collection</h2>
+                <span className="muted small">{info.products.length} pieces</span>
+              </div>
               <div className="products">
                 {info.products.map((p) => {
                   const q = cart[p.sku] ?? 0
                   return (
                     <article key={p.sku} className="product">
-                      <Swatch product={p} />
+                      <ProductImage product={p} />
                       <div className="product-body">
                         <div className="product-line">
-                          <h2>{p.name}</h2>
-                          <span className="num">{money(p.price, info.currency)}</span>
+                          <h3>{p.name}</h3>
+                          <span className="num product-price">{money(p.price, info.currency)}</span>
                         </div>
                         <p className="muted small">{p.blurb}</p>
                         {q === 0 ? (
-                          <button className="button" onClick={() => setQty(p.sku, 1)}>Add to bag</button>
+                          <button className="button button-primary" onClick={() => setQty(p.sku, 1)}>Add to bag</button>
                         ) : (
                           <div className="stepper" role="group" aria-label={`Quantity of ${p.name}`}>
                             <button onClick={() => setQty(p.sku, q - 1)} aria-label="One fewer">−</button>
@@ -214,7 +298,10 @@ export default function Shop() {
                 </div>
               ) : (
                 <>
-                  <h2 id="bag-title">Your bag</h2>
+                  <div className="bag-head">
+                    <span className="eyebrow">Checkout</span>
+                    <h2 id="bag-title">Your bag</h2>
+                  </div>
                   {lines.length === 0 ? (
                     <p className="empty">Nothing here yet.</p>
                   ) : (
@@ -222,30 +309,67 @@ export default function Shop() {
                       <ul className="bag-lines">
                         {lines.map(({ p, q }) => (
                           <li key={p.sku}>
-                            <span>{q} × {p.name}</span>
+                            <img src={p.image} alt="" width={44} height={44} />
+                            <span className="grow">{p.name}<small className="block muted">{p.colour} · qty {q}</small></span>
                             <span className="num">{money(String(Number(p.price) * q), info.currency)}</span>
                           </li>
                         ))}
                       </ul>
-                      <div className="bag-total">
-                        <span>Total</span>
-                        <span className="num">{money(total.toFixed(2), info.currency)}</span>
-                      </div>
+                      <dl className="bag-sums">
+                        <dt>Shipping</dt><dd>Free</dd>
+                        <dt className="bag-total">Total</dt><dd className="bag-total num">{money(total.toFixed(2), info.currency)}</dd>
+                      </dl>
                       <p className="muted small">Ships to the address on your PayPal account.</p>
                     </>
                   )}
                   <div hidden={lines.length === 0}>
                     <Checkout info={info} cart={cart} onPaid={onPaid} />
                   </div>
+                  <p className="bag-trust small">Secure checkout with PayPal</p>
                 </>
               )}
             </aside>
           </div>
         )}
+        {info && history.length > 0 && (
+          <section className="store-orders" aria-labelledby="orders">
+            <div className="store-section-head">
+              <h2 id="orders">Your orders</h2>
+              <span className="muted small">{history.length} placed from this browser</span>
+            </div>
+            <ul className="past-orders">
+              {history.map((o) => (
+                <li key={o.id} className="past-order">
+                  <div className="past-order-head">
+                    <div>
+                      <span className="eyebrow">Order</span>
+                      <code>{o.id}</code>
+                    </div>
+                    <span className="muted small">{new Date(o.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                    <span className={`pill ${o.pending ? 'pill-partial' : 'pill-protected'}`}>{o.pending ? 'Processing' : 'Paid'}</span>
+                    <strong className="num">{money(o.total, info.currency)}</strong>
+                  </div>
+                  <ul className="bag-lines">
+                    {o.lines.map((l) => (
+                      <li key={l.sku}>
+                        <img src={l.image} alt="" width={44} height={44} />
+                        <span className="grow">{l.name}<small className="block muted">{l.colour} · qty {l.quantity}</small></span>
+                        <span className="num">{money(String(Number(l.price) * l.quantity), info.currency)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </main>
+
       <footer className="store-foot">
-        <span>© Juniper Lane Apparel (a fictional shop)</span>
-        <a href="/">Seller? Open Ringside →</a>
+        <div className="store-foot-inner">
+          <span>© 2026 Juniper Lane Apparel · Austin, Texas</span>
+          <a href="/">Seller sign-in</a>
+        </div>
       </footer>
     </div>
   )

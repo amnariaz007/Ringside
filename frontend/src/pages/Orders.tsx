@@ -32,6 +32,9 @@ const RULE_LABEL: Record<string, string> = {
   LINKED_TO_BAD_ACTOR: 'ring link',
 }
 
+// The strongest fraud signals get a red chip.
+const ALERT_RULES = new Set(['LINKED_TO_BAD_ACTOR', 'RESHIPPER_ADDRESS', 'PRIOR_DISPUTES'])
+
 function BuyerCell(p: CustomCellRendererProps<OrderRow>) {
   return (
     <span className="cell-two">
@@ -44,7 +47,14 @@ function BuyerCell(p: CustomCellRendererProps<OrderRow>) {
 function SignalsCell(p: CustomCellRendererProps<OrderRow>) {
   const rules = p.data?.rules ?? []
   if (!rules.length) return <span className="muted small">none</span>
-  return <span>{rules.slice(0, 3).map((r) => <span key={r} className="chip">{RULE_LABEL[r] ?? r}</span>)}{rules.length > 3 && <span className="muted small">+{rules.length - 3}</span>}</span>
+  return (
+    <span className="chips">
+      {rules.slice(0, 3).map((r) => (
+        <span key={r} className={`chip ${ALERT_RULES.has(r) ? 'chip-alert' : ''}`}>{RULE_LABEL[r] ?? r}</span>
+      ))}
+      {rules.length > 3 && <span className="more">+{rules.length - 3}</span>}
+    </span>
+  )
 }
 
 function RouteCell(p: CustomCellRendererProps<OrderRow>) {
@@ -75,7 +85,7 @@ export default function Orders() {
     },
     { headerName: 'Buyer', field: 'buyer', flex: 1.3, minWidth: 180, cellRenderer: BuyerCell, filter: 'agTextColumnFilter',
       getQuickFilterText: (p) => `${p.data?.buyer} ${p.data?.payer_id}` },
-    { headerName: 'Why', field: 'rules', flex: 1.6, minWidth: 220, sortable: false, cellRenderer: SignalsCell,
+    { headerName: 'Why', field: 'rules', flex: 1.6, minWidth: 300, sortable: false, cellRenderer: SignalsCell,
       valueFormatter: (p) => (p.value ?? []).join(' '), getQuickFilterText: (p) => (p.data?.rules ?? []).map((r) => RULE_LABEL[r] ?? r).join(' ') },
     { headerName: 'Placed', field: 'created_at', width: 150, valueFormatter: (p) => (p.value ? dateTime(p.value) : '') },
     { headerName: 'Route', colId: 'route', width: 110, sortable: false, cellRenderer: RouteCell,

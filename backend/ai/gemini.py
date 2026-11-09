@@ -118,7 +118,9 @@ class GeminiProvider:
         data = self.generate(
             "explain_risk",
             "You explain a fraud-risk score to a small online seller in plain English. Use only the findings "
-            "given. Two sentences at most: what the score means, then the single most useful action "
+            "given. Two short sentences, 35 words at most in total. The first states the score exactly as "
+            "'<score>/100' with its level and only the one or two most important reasons, in everyday words "
+            "without rule names or point values; the second gives the single most useful action "
             "(ship normally, check details, or hold). Do not add facts or numbers that aren't in the input.",
             user,
             {"type": "OBJECT", "properties": {"text": {"type": "STRING"}}, "required": ["text"]},

@@ -1,0 +1,217 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 800 800" width="800" height="800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4efe6"/>
+      <stop offset="1" stop-color="#e8e0cf"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-200%" width="160%" height="500%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+    <filter id="blur4" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0"/>
+      <feComposite in2="SourceGraphic" operator="in"/>
+    </filter>
+    <!-- body form: darker at sides, lighter centre -->
+    <linearGradient id="bodyG" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#6e4526"/>
+      <stop offset="0.18" stop-color="#83552f"/>
+      <stop offset="0.5" stop-color="#8f5e35"/>
+      <stop offset="0.82" stop-color="#83552f"/>
+      <stop offset="1" stop-color="#6a4224"/>
+    </linearGradient>
+    <linearGradient id="vShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity="0"/>
+      <stop offset="0.8" stop-color="#000" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.16"/>
+    </linearGradient>
+    <linearGradient id="sleeveL" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#694124"/>
+      <stop offset="0.45" stop-color="#8a5a32"/>
+      <stop offset="1" stop-color="#6c4425"/>
+    </linearGradient>
+    <linearGradient id="sleeveR" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0" stop-color="#694124"/>
+      <stop offset="0.45" stop-color="#8a5a32"/>
+      <stop offset="1" stop-color="#6c4425"/>
+    </linearGradient>
+    <linearGradient id="pocketG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8d5c33"/>
+      <stop offset="1" stop-color="#7c4f2c"/>
+    </linearGradient>
+    <linearGradient id="flapG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#93623a"/>
+      <stop offset="1" stop-color="#7e512d"/>
+    </linearGradient>
+    <linearGradient id="collarG" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#644029"/>
+      <stop offset="1" stop-color="#4f321d"/>
+    </linearGradient>
+    <radialGradient id="brass" cx="0.38" cy="0.35" r="0.7">
+      <stop offset="0" stop-color="#ecd38a"/>
+      <stop offset="0.45" stop-color="#b8913f"/>
+      <stop offset="1" stop-color="#7a5c22"/>
+    </radialGradient>
+    <!-- waxed sheen -->
+    <radialGradient id="sheen" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff3df" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#fff3df" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="twill" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+      <rect width="6" height="6" fill="none"/>
+      <line x1="0" y1="0" x2="0" y2="6" stroke="#2a1708" stroke-width="1.1" stroke-opacity="0.09"/>
+    </pattern>
+    <pattern id="cord" width="5" height="5" patternUnits="userSpaceOnUse">
+      <rect width="2.4" height="5" fill="#000" fill-opacity="0.22"/>
+      <rect x="2.6" width="1" height="5" fill="#fff" fill-opacity="0.06"/>
+    </pattern>
+    <g id="snap">
+      <circle r="8.5" fill="url(#brass)"/>
+      <circle r="8.5" fill="none" stroke="#5e4416" stroke-width="1" stroke-opacity="0.7"/>
+      <circle r="4" fill="none" stroke="#6d521c" stroke-width="1.1" stroke-opacity="0.6"/>
+      <circle cx="-2.6" cy="-3" r="1.8" fill="#fff6d6" fill-opacity="0.75"/>
+    </g>
+    <path id="body" d="M342,168 L258,196 C264,240 266,290 264,330 L258,654 Q400,670 542,654 L536,330 C534,290 536,240 542,196 L458,168 Q400,196 342,168 Z"/>
+    <path id="slL" d="M262,195 C220,206 196,238 186,290 L150,592 L234,604 L290,340 L290,200 Z"/>
+    <path id="slR" d="M538,195 C580,206 604,238 614,290 L650,592 L566,604 L510,340 L510,200 Z"/>
+  </defs>
+
+  <rect width="800" height="800" fill="url(#bg)"/>
+  <ellipse cx="400" cy="672" rx="270" ry="20" fill="#1a1f2a" fill-opacity="0.18" filter="url(#soft)"/>
+  <ellipse cx="190" cy="636" rx="60" ry="10" fill="#1a1f2a" fill-opacity="0.12" filter="url(#soft)"/>
+  <ellipse cx="610" cy="636" rx="60" ry="10" fill="#1a1f2a" fill-opacity="0.12" filter="url(#soft)"/>
+
+  <!-- sleeves -->
+  <use href="#slL" fill="url(#sleeveL)"/>
+  <use href="#slR" fill="url(#sleeveR)"/>
+  <use href="#slL" fill="url(#twill)"/>
+  <use href="#slR" fill="url(#twill)"/>
+  <!-- sleeve folds -->
+  <g fill="none" stroke="#3c230f" stroke-linecap="round" stroke-opacity="0.35" stroke-width="2">
+    <path d="M196,420 Q214,436 246,432"/>
+    <path d="M190,452 Q210,462 242,456"/>
+    <path d="M604,420 Q586,436 554,432"/>
+    <path d="M610,452 Q590,462 558,456"/>
+    <path d="M222,240 Q214,300 206,350" stroke-opacity="0.18"/>
+    <path d="M578,240 Q586,300 594,350" stroke-opacity="0.18"/>
+  </g>
+  <g fill="none" stroke="#ffe9c8" stroke-linecap="round" stroke-opacity="0.18" stroke-width="3">
+    <path d="M194,430 Q214,446 244,442"/>
+    <path d="M606,430 Q586,446 556,442"/>
+    <path d="M206,270 Q196,330 186,420"/>
+    <path d="M594,270 Q604,330 614,420"/>
+  </g>
+  <!-- cuffs -->
+  <path d="M152,576 L235,588 L231,628 L147,616 Z" fill="#74492a"/>
+  <path d="M648,576 L565,588 L569,628 L653,616 Z" fill="#74492a"/>
+  <g fill="none" stroke="#e7c9a2" stroke-opacity="0.55" stroke-width="1.2" stroke-dasharray="4 3">
+    <path d="M153,582 L234,594"/><path d="M149,610 L232,622"/>
+    <path d="M647,582 L566,594"/><path d="M651,610 L568,622"/>
+  </g>
+  <use href="#snap" transform="translate(220,605) scale(0.85)"/>
+  <use href="#snap" transform="translate(580,605) scale(0.85)"/>
+
+  <!-- body -->
+  <use href="#body" fill="url(#bodyG)"/>
+  <use href="#body" fill="url(#twill)"/>
+  <use href="#body" fill="url(#vShade)"/>
+  <!-- armhole seams -->
+  <g fill="none" stroke="#e7c9a2" stroke-opacity="0.5" stroke-width="1.2" stroke-dasharray="4 3">
+    <path d="M264,202 C270,250 272,300 268,336"/>
+    <path d="M536,202 C530,250 528,300 532,336"/>
+    <path d="M262,638 Q400,654 538,638"/>
+  </g>
+  <g fill="none" stroke="#3c230f" stroke-opacity="0.3" stroke-width="1.5">
+    <path d="M258,196 C264,240 266,290 264,330"/>
+    <path d="M542,196 C536,240 534,290 536,330"/>
+    <path d="M260,630 Q400,648 540,630" stroke-opacity="0.22"/>
+  </g>
+  <!-- body sheen & folds -->
+  <ellipse cx="330" cy="430" rx="70" ry="190" fill="url(#sheen)" opacity="0.6"/>
+  <ellipse cx="470" cy="430" rx="60" ry="180" fill="url(#sheen)" opacity="0.4"/>
+  <g fill="none" stroke="#fff1da" stroke-linecap="round" stroke-width="2.5" stroke-opacity="0.16">
+    <path d="M296,372 Q306,412 298,446"/>
+    <path d="M504,372 Q494,412 502,446"/>
+    <path d="M276,606 Q300,626 332,624"/>
+  </g>
+  <g fill="none" stroke="#3c230f" stroke-linecap="round" stroke-opacity="0.22" stroke-width="2">
+    <path d="M300,360 Q310,410 302,450"/>
+    <path d="M500,360 Q490,410 498,450"/>
+    <path d="M278,600 Q300,620 330,618"/>
+    <path d="M522,600 Q500,620 470,618"/>
+  </g>
+
+  <!-- centre placket -->
+  <rect x="388" y="214" width="24" height="440" fill="#7d502c"/>
+  <rect x="388" y="214" width="24" height="440" fill="url(#twill)"/>
+  <path d="M388,214 L388,656" stroke="#3c230f" stroke-opacity="0.45" stroke-width="1.6"/>
+  <path d="M412,214 L412,656" stroke="#ffe9c8" stroke-opacity="0.18" stroke-width="1.2"/>
+  <g fill="none" stroke="#e7c9a2" stroke-opacity="0.55" stroke-width="1.2" stroke-dasharray="4 3">
+    <path d="M392,220 L392,648"/><path d="M408,220 L408,648"/>
+  </g>
+  <use href="#snap" transform="translate(400,262)"/>
+  <use href="#snap" transform="translate(400,336)"/>
+  <use href="#snap" transform="translate(400,410)"/>
+  <use href="#snap" transform="translate(400,484)"/>
+  <use href="#snap" transform="translate(400,558)"/>
+  <use href="#snap" transform="translate(400,626)"/>
+
+  <!-- chest pockets -->
+  <g id="chestL">
+    <rect x="292" y="282" width="78" height="76" rx="3" fill="url(#pocketG)"/>
+    <rect x="292" y="282" width="78" height="76" rx="3" fill="url(#twill)"/>
+    <rect x="296" y="286" width="70" height="68" rx="2" fill="none" stroke="#e7c9a2" stroke-opacity="0.5" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <path d="M292,358 L370,358" stroke="#2b1708" stroke-opacity="0.3" stroke-width="2"/>
+    <path d="M288,272 L374,272 L374,304 L331,312 L288,304 Z" fill="url(#flapG)"/>
+    <path d="M288,304 L331,312 L374,304" fill="none" stroke="#2b1708" stroke-opacity="0.35" stroke-width="2"/>
+    <path d="M292,276 L370,276 L370,300 L331,307 L292,300 Z" fill="none" stroke="#e7c9a2" stroke-opacity="0.5" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <use href="#snap" transform="translate(331,298) scale(0.8)"/>
+  </g>
+  <g transform="translate(800,0) scale(-1,1)">
+    <use href="#chestL"/>
+  </g>
+
+  <!-- lower bellows pockets -->
+  <g id="lowL">
+    <path d="M280,472 L376,472 L378,598 L278,598 Z" fill="#6f4627"/>
+    <path d="M285,474 L371,474 L372,596 L284,596 Z" fill="url(#pocketG)"/>
+    <path d="M285,474 L371,474 L372,596 L284,596 Z" fill="url(#twill)"/>
+    <path d="M289,478 L367,478 L368,592 L288,592 Z" fill="none" stroke="#e7c9a2" stroke-opacity="0.5" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <path d="M280,598 L378,598" stroke="#2b1708" stroke-opacity="0.35" stroke-width="2"/>
+    <path d="M330,530 Q326,560 334,588" fill="none" stroke="#3c230f" stroke-opacity="0.18" stroke-width="2"/>
+    <path d="M274,460 L382,460 L382,500 L274,500 Z" fill="url(#flapG)"/>
+    <path d="M274,500 L382,500" stroke="#2b1708" stroke-opacity="0.4" stroke-width="2"/>
+    <path d="M278,464 L378,464 L378,496 L278,496 Z" fill="none" stroke="#e7c9a2" stroke-opacity="0.5" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <use href="#snap" transform="translate(328,486) scale(0.85)"/>
+  </g>
+  <g transform="translate(800,0) scale(-1,1)">
+    <use href="#lowL"/>
+  </g>
+
+  <!-- collar -->
+  <path d="M342,168 Q400,196 458,168 L440,170 Q400,150 360,170 Z" fill="#2e1d10"/>
+  <path d="M352,170 Q400,150 448,170 L420,214 L380,214 Z" fill="#3a2414"/>
+  <path d="M358,176 Q400,160 442,176" fill="none" stroke="#c9a57a" stroke-opacity="0.35" stroke-width="1.1" stroke-dasharray="3 3"/>
+  <ellipse cx="400" cy="250" rx="140" ry="36" fill="#1a0e05" fill-opacity="0.14" filter="url(#blur4)"/>
+  <path d="M332,170 Q400,136 468,170 L462,186 Q400,158 338,186 Z" fill="#4a2f1b"/>
+  <path d="M332,170 Q400,136 468,170 L462,186 Q400,158 338,186 Z" fill="url(#cord)"/>
+  <g id="collarL">
+    <path d="M336,168 L300,266 L398,226 L394,200 Q360,190 336,168 Z" fill="url(#collarG)"/>
+    <path d="M336,168 L300,266 L398,226 L394,200 Q360,190 336,168 Z" fill="url(#cord)"/>
+    <path d="M340,180 L309,258 L391,224" fill="none" stroke="#c9a57a" stroke-opacity="0.45" stroke-width="1.1" stroke-dasharray="3 3"/>
+    <path d="M300,266 L398,226" stroke="#1c0f05" stroke-opacity="0.35" stroke-width="2"/>
+  </g>
+  <g transform="translate(800,0) scale(-1,1)">
+    <use href="#collarL"/>
+  </g>
+
+  <!-- overall grain -->
+  <g filter="url(#grain)" opacity="0.08">
+    <use href="#body" fill="#000"/>
+    <use href="#slL" fill="#000"/>
+    <use href="#slR" fill="#000"/>
+  </g>
+</svg>

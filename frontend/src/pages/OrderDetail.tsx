@@ -218,6 +218,18 @@ export default function OrderDetail() {
                     <dt>Status</dt><dd>{humanize(o.status)}</dd>
                   </dl>
                 </Card>
+                {o.items.length > 0 && (
+                  <Card title="Items">
+                    <ul className="plain">
+                      {o.items.map((i) => (
+                        <li key={i.sku || i.name}>
+                          {i.quantity} × {i.name}
+                          {i.unit_amount && <span className="muted"> · {money(i.unit_amount, o.currency)} each</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                )}
                 <ShippingCard order={o} onSaved={setSaved} />
                 {(o.refunds.length > 0 || o.disputes.length > 0) && (
                   <Card title="After the sale">

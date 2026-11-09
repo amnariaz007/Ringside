@@ -67,4 +67,5 @@ def build_purchase_unit(items: object) -> dict:
 
 
 def public_products() -> list[dict]:
-    return [{**{k: v for k, v in p.items() if k != "price"}, "price": money(p["price"])} for p in PRODUCTS]
+    return [{**{k: v for k, v in p.items() if k != "price"}, "price": money(p["price"]),
+             "image": f"/shop/{p['sku'].lower()}.svg"} for p in PRODUCTS]

@@ -1,0 +1,183 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="800" viewBox="0 0 800 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4efe6"/>
+      <stop offset="1" stop-color="#e8e0cf"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <filter id="soft2" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="2.2"/>
+    </filter>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9db398"/>
+      <stop offset="0.5" stop-color="#8fa58b"/>
+      <stop offset="1" stop-color="#7d937a"/>
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#2b3a2a" stop-opacity="0.14"/>
+    </linearGradient>
+    <linearGradient id="inside" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a6e58"/>
+      <stop offset="0.35" stop-color="#6f8369"/>
+      <stop offset="1" stop-color="#7f9379"/>
+    </linearGradient>
+    <linearGradient id="collar" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a3b89e"/>
+      <stop offset="1" stop-color="#889e84"/>
+    </linearGradient>
+    <radialGradient id="btn" cx="0.4" cy="0.35" r="0.7">
+      <stop offset="0" stop-color="#fbf8f0"/>
+      <stop offset="0.7" stop-color="#ece5d4"/>
+      <stop offset="1" stop-color="#cfc6b1"/>
+    </radialGradient>
+    <pattern id="slub" width="173" height="19" patternUnits="userSpaceOnUse">
+      <path d="M0 2h41M49 2.4h27M88 2h50M146 2.3h27" stroke="#ffffff" stroke-width="0.8" opacity="0.5"/>
+      <path d="M9 5.5h19M40 5.8h61M112 5.4h30M155 5.6h12" stroke="#24331f" stroke-width="0.9" opacity="0.45"/>
+      <path d="M0 9.2h14M23 9h48M80 9.4h22M118 9.1h55" stroke="#ffffff" stroke-width="0.7" opacity="0.4"/>
+      <path d="M15 12.6h33M58 12.4h17M84 12.8h46M140 12.5h20" stroke="#24331f" stroke-width="1.4" opacity="0.3"/>
+      <path d="M4 16.2h60M70 16h12M92 16.3h38M139 16.1h30" stroke="#ffffff" stroke-width="0.6" opacity="0.35"/>
+    </pattern>
+    <pattern id="weave" width="3" height="3" patternUnits="userSpaceOnUse">
+      <rect width="1.5" height="1.5" fill="#ffffff" opacity="0.25"/>
+      <rect x="1.5" y="1.5" width="1.5" height="1.5" fill="#1f2b1d" opacity="0.2"/>
+    </pattern>
+    <path id="shirt" d="M352 176 C330 184 296 196 262 206 C226 220 186 250 146 300 L204 372 C228 352 248 340 266 334 L268 628 L272 652 L528 652 L532 628 L534 334 C552 340 572 352 596 372 L654 300 C614 250 574 220 538 206 C504 196 470 184 448 176 Z"/>
+    <clipPath id="clip"><use href="#shirt"/></clipPath>
+  </defs>
+
+  <rect width="800" height="800" fill="url(#bg)"/>
+  <use href="#shirt" fill="#1a1f2a" opacity="0.18" filter="url(#shadow)" transform="translate(4 16)"/>
+  <ellipse cx="400" cy="660" rx="150" ry="10" fill="#1a1f2a" opacity="0.12" filter="url(#soft)"/>
+
+  <!-- main silhouette -->
+  <use href="#shirt" fill="url(#body)"/>
+  <g clip-path="url(#clip)">
+    <use href="#shirt" fill="url(#shade)"/>
+    <rect width="800" height="800" fill="url(#slub)" opacity="0.22"/>
+    <rect width="800" height="800" fill="url(#weave)" opacity="0.12"/>
+    <ellipse cx="340" cy="420" rx="90" ry="160" fill="#ffffff" opacity="0.06" filter="url(#soft)"/>
+    <path d="M500 330 C520 420 528 540 532 650 L470 650 C490 560 492 440 500 330 Z" fill="#2c3b2a" opacity="0.06" filter="url(#soft)"/>
+    <!-- sleeve shading -->
+    <path d="M262 206 C226 220 186 250 146 300 L204 372 C228 352 248 340 266 334 Z" fill="#2c3b2a" opacity="0.08"/>
+    <path d="M538 206 C574 220 614 250 654 300 L596 372 C572 352 552 340 534 334 Z" fill="#2c3b2a" opacity="0.12"/>
+    <!-- natural wrinkles -->
+    <g fill="none" stroke="#2a3a28" stroke-linecap="round" filter="url(#soft2)">
+      <path d="M300 420 C320 440 330 470 326 510" stroke-width="5" opacity="0.18"/>
+      <path d="M470 450 C486 480 490 520 480 560" stroke-width="5" opacity="0.16"/>
+      <path d="M290 560 C320 575 350 585 380 588" stroke-width="4" opacity="0.15"/>
+      <path d="M420 600 C450 596 480 600 510 610" stroke-width="4" opacity="0.14"/>
+      <path d="M180 300 C200 310 220 320 240 336" stroke-width="4" opacity="0.18"/>
+      <path d="M620 300 C600 312 580 322 560 336" stroke-width="4" opacity="0.2"/>
+      <path d="M276 340 C290 360 296 380 294 400" stroke-width="3.5" opacity="0.2"/>
+      <path d="M524 340 C510 362 506 384 508 404" stroke-width="3.5" opacity="0.22"/>
+    </g>
+    <g fill="none" stroke="#ffffff" stroke-linecap="round" filter="url(#soft2)">
+      <path d="M310 424 C330 446 340 474 336 512" stroke-width="5" opacity="0.14"/>
+      <path d="M458 452 C474 482 478 520 468 560" stroke-width="5" opacity="0.12"/>
+      <path d="M200 280 C220 292 240 304 256 320" stroke-width="5" opacity="0.15"/>
+    </g>
+    <!-- sleeve cuff stitch -->
+    <path d="M160 309 L216 377" stroke="#e9eadc" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.6" transform="translate(4 -4)"/>
+    <path d="M640 309 L584 377" stroke="#e9eadc" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.6" transform="translate(-4 -4)"/>
+    <!-- cuff fold line -->
+    <path d="M168 296 L224 364" stroke="#2a3a28" stroke-width="2" opacity="0.18"/>
+    <path d="M632 296 L576 364" stroke="#2a3a28" stroke-width="2" opacity="0.2"/>
+    <!-- hem stitch -->
+    <path d="M276 640 L524 640" stroke="#e9eadc" stroke-width="1.2" stroke-dasharray="4 3" opacity="0.6"/>
+    <!-- armhole seams -->
+    <path d="M262 208 C270 250 268 300 266 334" fill="none" stroke="#2a3a28" stroke-width="1.5" opacity="0.25"/>
+    <path d="M538 208 C530 250 532 300 534 334" fill="none" stroke="#2a3a28" stroke-width="1.5" opacity="0.25"/>
+    <path d="M268 208 C276 250 274 300 272 334" fill="none" stroke="#e9eadc" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+    <path d="M532 208 C524 250 526 300 528 334" fill="none" stroke="#e9eadc" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+    <!-- yoke hint -->
+    <path d="M300 196 C330 214 360 222 372 226" fill="none" stroke="#2a3a28" stroke-width="1.5" opacity="0.22"/>
+    <path d="M500 196 C470 214 440 222 428 226" fill="none" stroke="#2a3a28" stroke-width="1.5" opacity="0.22"/>
+    <path d="M302 202 C330 219 356 227 370 231" fill="none" stroke="#e9eadc" stroke-width="1" stroke-dasharray="4 3" opacity="0.45"/>
+    <path d="M498 202 C470 219 444 227 430 231" fill="none" stroke="#e9eadc" stroke-width="1" stroke-dasharray="4 3" opacity="0.45"/>
+  </g>
+
+  <!-- side vents -->
+  <path d="M267 628 L273 653 L262 653 Z" fill="#e9e2d2"/>
+  <path d="M533 628 L527 653 L538 653 Z" fill="#e9e2d2"/>
+  <path d="M268 628 L273 652" stroke="#2a3a28" stroke-width="1.2" opacity="0.35"/>
+  <path d="M532 628 L527 652" stroke="#2a3a28" stroke-width="1.2" opacity="0.35"/>
+  <rect x="267" y="622" width="7" height="3" rx="1" fill="#e9eadc" opacity="0.7"/>
+  <rect x="526" y="622" width="7" height="3" rx="1" fill="#e9eadc" opacity="0.7"/>
+
+  <!-- neck opening: inside back -->
+  <path d="M352 176 C372 190 428 190 448 176 L442 186 C428 230 412 290 400 332 C388 290 372 230 358 186 Z" fill="url(#inside)"/>
+  <path d="M354 180 C374 194 426 194 446 180" fill="none" stroke="#e9eadc" stroke-width="1" stroke-dasharray="4 3" opacity="0.4"/>
+  <path d="M372 190 C392 196 408 196 428 190" fill="none" stroke="#1a1f2a" stroke-width="6" opacity="0.12" filter="url(#soft2)"/>
+
+  <!-- placket -->
+  <rect x="390" y="330" width="20" height="322" fill="#93a98f"/>
+  <rect x="390" y="330" width="20" height="322" fill="url(#slub)" opacity="0.18"/>
+  <path d="M390 330 V652" stroke="#2a3a28" stroke-width="1.4" opacity="0.3"/>
+  <path d="M410 330 V652" stroke="#2a3a28" stroke-width="1" opacity="0.15"/>
+  <path d="M393 336 V648 M407 336 V648" stroke="#e9eadc" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+
+  <!-- collar under-shadow -->
+  <path d="M290 200 C292 234 298 266 306 298 M510 200 C508 234 502 266 494 298" fill="none" stroke="#1a1f2a" stroke-width="7" opacity="0.14" filter="url(#soft2)"/>
+  <!-- collar left (viewer) -->
+  <g >
+    <path d="M352 176 C330 182 300 190 284 198 C286 232 292 266 302 294 L338 272 L346 284 C368 306 386 320 400 332 C388 290 372 230 358 186 Z" fill="url(#collar)"/>
+    
+    <path d="M352 176 C330 182 300 190 284 198 C286 232 292 266 302 294 L338 272 L346 284 C368 306 386 320 400 332 C388 290 372 230 358 186 Z" fill="url(#slub)" opacity="0.18"/>
+    <path d="M338 272 C346 260 354 248 364 236" fill="none" stroke="#2a3a28" stroke-width="1.4" opacity="0.3"/>
+    <path d="M290 202 C292 234 298 262 306 286 L334 269" fill="none" stroke="#e9eadc" stroke-width="1" stroke-dasharray="4 3" opacity="0.55"/>
+    <path d="M350 290 C370 308 384 318 394 326" fill="none" stroke="#e9eadc" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+    <path d="M302 294 L338 272 L346 284 C368 306 386 320 400 332" fill="none" stroke="#2a3a28" stroke-width="1.4" opacity="0.32"/>
+    <path d="M300 220 C320 214 340 204 352 192" fill="none" stroke="#ffffff" stroke-width="6" opacity="0.12" filter="url(#soft2)"/>
+  </g>
+  <!-- collar right -->
+  <g transform="matrix(-1 0 0 1 800 0)">
+    <path d="M352 176 C330 182 300 190 284 198 C286 232 292 266 302 294 L338 272 L346 284 C368 306 386 320 400 332 C388 290 372 230 358 186 Z" fill="url(#collar)"/>
+    <path d="M352 176 C330 182 300 190 284 198 C286 232 292 266 302 294 L338 272 L346 284 C368 306 386 320 400 332 C388 290 372 230 358 186 Z" fill="#2c3b2a" opacity="0.07"/>
+    <path d="M352 176 C330 182 300 190 284 198 C286 232 292 266 302 294 L338 272 L346 284 C368 306 386 320 400 332 C388 290 372 230 358 186 Z" fill="url(#slub)" opacity="0.18"/>
+    <path d="M338 272 C346 260 354 248 364 236" fill="none" stroke="#2a3a28" stroke-width="1.4" opacity="0.3"/>
+    <path d="M290 202 C292 234 298 262 306 286 L334 269" fill="none" stroke="#e9eadc" stroke-width="1" stroke-dasharray="4 3" opacity="0.55"/>
+    <path d="M350 290 C370 308 384 318 394 326" fill="none" stroke="#e9eadc" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+    <path d="M302 294 L338 272 L346 284 C368 306 386 320 400 332" fill="none" stroke="#2a3a28" stroke-width="1.4" opacity="0.32"/>
+    <path d="M300 220 C320 214 340 204 352 192" fill="none" stroke="#ffffff" stroke-width="6" opacity="0.12" filter="url(#soft2)"/>
+  </g>
+  <!-- collar cast shadow -->
+  <path d="M302 298 L338 276 L346 288 C368 310 386 324 400 336 C414 324 432 310 454 288 L462 276 L498 298" fill="none" stroke="#1a1f2a" stroke-width="7" opacity="0.12" filter="url(#soft2)"/>
+
+  <!-- pocket (wearer's left) -->
+  <g>
+    <path d="M428 352 H494 V418 C494 424 490 428 484 428 H438 C432 428 428 424 428 418 Z" fill="#94aa90"/>
+    <path d="M428 352 H494 V418 C494 424 490 428 484 428 H438 C432 428 428 424 428 418 Z" fill="url(#slub)" opacity="0.18"/>
+    <path d="M428 352 H494 V418 C494 424 490 428 484 428 H438 C432 428 428 424 428 418 Z" fill="none" stroke="#2a3a28" stroke-width="1.2" opacity="0.3"/>
+    <path d="M432 356 V417 C432 421 435 424 439 424 H483 C487 424 490 421 490 417 V356" fill="none" stroke="#e9eadc" stroke-width="1" stroke-dasharray="4 3" opacity="0.55"/>
+    <path d="M428 362 H494" stroke="#e9eadc" stroke-width="1" stroke-dasharray="4 3" opacity="0.55"/>
+    <path d="M428 352 H494" stroke="#2a3a28" stroke-width="1.6" opacity="0.25"/>
+    <path d="M432 430 H492" stroke="#1a1f2a" stroke-width="3" opacity="0.08" filter="url(#soft2)"/>
+  </g>
+
+  <!-- buttons -->
+  <g>
+    <g id="b" transform="translate(0 14)">
+      <circle cx="400" cy="340" r="7.5" fill="#1a1f2a" opacity="0.15" transform="translate(1 1.5)"/>
+      <circle cx="400" cy="340" r="7" fill="url(#btn)" stroke="#bdb39c" stroke-width="0.6"/>
+      <circle cx="400" cy="340" r="4.6" fill="none" stroke="#cfc6b1" stroke-width="0.6"/>
+      <circle cx="398" cy="338.4" r="0.9" fill="#a99f88"/>
+      <circle cx="402" cy="338.4" r="0.9" fill="#a99f88"/>
+      <circle cx="398" cy="341.8" r="0.9" fill="#a99f88"/>
+      <circle cx="402" cy="341.8" r="0.9" fill="#a99f88"/>
+    </g>
+    <use href="#b" y="68"/>
+    <use href="#b" y="136"/>
+    <use href="#b" y="204"/>
+    <use href="#b" y="272"/>
+  </g>
+
+  <!-- edge definition -->
+  <use href="#shirt" fill="none" stroke="#5e7259" stroke-width="1.2" opacity="0.5"/>
+</svg>

@@ -83,12 +83,21 @@ class OrderDetailSerializer(OrderListSerializer):
     disputes = serializers.SerializerMethodField()
     shipment = serializers.SerializerMethodField()
     can_ship = serializers.SerializerMethodField()
+    items = serializers.SerializerMethodField()
 
     class Meta(OrderListSerializer.Meta):
         fields = OrderListSerializer.Meta.fields + [
             "status", "shipping_address", "is_reshipper", "seller_protection_advice", "assessment",
-            "refunds", "disputes", "shipment", "can_ship",
+            "refunds", "disputes", "shipment", "can_ship", "items",
         ]
+
+    def get_items(self, obj):
+        """Line items as PayPal recorded them (empty for orders created without an item list)."""
+        units = obj.raw.get("purchase_units") if isinstance(obj.raw, dict) else None
+        items = (units[0].get("items") if units and isinstance(units[0], dict) else None) or []
+        return [{"name": str(i.get("name", ""))[:120], "sku": str(i.get("sku", ""))[:60],
+                 "quantity": str(i.get("quantity", "1")), "unit_amount": str(i.get("unit_amount", {}).get("value", ""))}
+                for i in items if isinstance(i, dict)]
 
     def get_shipment(self, obj):
         s = getattr(obj, "shipment", None)

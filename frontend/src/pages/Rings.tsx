@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Background, Controls, Handle, Position, ReactFlow } from '@xyflow/react'
 import type { Edge, Node, NodeProps } from '@xyflow/react'
@@ -126,13 +126,37 @@ function GraphView({ payerId }: { payerId: string }) {
   const current = state.data?.payer_id === payerId ? state.data : null
   const flow = useMemo(() => (current ? layout(current) : null), [current])
 
+  // The AI summary is written in the background the first time a ring is seen.
+  // Until it is ready the server sends template text; check back for the AI text.
+  const [late, setLate] = useState<{ payerId: string; summary: string; source: string } | null>(null)
+  const pending = current?.summary_pending === true && late?.payerId !== payerId
+  useEffect(() => {
+    if (!pending) return
+    let tries = 0
+    const timer = window.setInterval(() => {
+      tries += 1
+      if (tries > 15) return window.clearInterval(timer)
+      api.buyerGraph(payerId).then((g) => {
+        if (!g.summary_pending) {
+          setLate({ payerId, summary: g.summary, source: g.summary_source })
+          window.clearInterval(timer)
+        }
+      }).catch(() => { /* keep the text already shown */ })
+    }, 4000)
+    return () => window.clearInterval(timer)
+  }, [pending, payerId])
+  const shown = late?.payerId === payerId ? late : null
+
   return (
     <Async state={state}>
       {(g) => (
         <>
           <div className={`ai-summary ${g.is_ring ? 'ai-summary-alert' : ''}`}>
-            <span className="ai-tag">{g.summary_source === 'template' ? 'Summary' : 'AI summary'}</span>
-            <p>{g.summary}</p>
+            <span className="ai-tag">
+              {(shown?.source ?? g.summary_source) === 'template' ? 'Summary' : 'AI summary'}
+            </span>
+            <p>{shown?.summary ?? g.summary}</p>
+            {pending && <span className="muted small" role="status">Gemini is writing the AI summary…</span>}
           </div>
           <div className="graph" role="region" aria-label="Graph of linked buyers, orders and shared details"
             // Height follows the number of rows, so small rings aren't lost in empty space.

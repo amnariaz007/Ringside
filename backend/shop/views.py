@@ -62,7 +62,7 @@ def shop_info(request):
 @csrf_protect
 def create_order(request):
     if not _checkout_enabled():
-        return JsonResponse({"detail": "Checkout runs only in PayPal sandbox mode."}, status=409)
+        return JsonResponse({"detail": "Checkout is unavailable right now. Please try again later."}, status=409)
     if _limited(request, "create"):
         return JsonResponse({"detail": "Too many checkouts. Try again in a few minutes."}, status=429)
     try:
@@ -84,7 +84,7 @@ def create_order(request):
 @csrf_protect
 def capture_order(request, order_id: str):
     if not _checkout_enabled():
-        return JsonResponse({"detail": "Checkout runs only in PayPal sandbox mode."}, status=409)
+        return JsonResponse({"detail": "Checkout is unavailable right now. Please try again later."}, status=409)
     if not ORDER_ID.match(order_id):
         return JsonResponse({"detail": "Unknown order."}, status=404)
     if _limited(request, "capture"):

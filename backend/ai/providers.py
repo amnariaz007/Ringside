@@ -49,15 +49,17 @@ class TemplateProvider:
         if not hits:
             return AIText(f"Low risk ({score}/100): no warning signs found on this order.", self.name)
 
-        top = hits[:3]
-        reasons = "; ".join(f"{h.reason.rstrip('.')} (+{h.points})" for h in top)
-        extra = f"; plus {len(hits) - 3} more signal(s)" if len(hits) > 3 else ""
+        # Short on purpose: the full list of reasons with points is shown right below it.
+        main = hits[0].reason.rstrip(".")
+        main = main[0].lower() + main[1:]
+        more = len(hits) - 1
+        extra = f", plus {more} more signal{'s' if more != 1 else ''}" if more else ""
         advice = {
             "high": "Hold shipment and review before fulfilling.",
-            "medium": "Check the details before shipping; consider signature on delivery.",
+            "medium": "Check the details before shipping.",
             "low": "Safe to ship as normal.",
         }[level]
-        return AIText(f"{level.capitalize()} risk ({score}/100): {reasons}{extra}. {advice}", self.name)
+        return AIText(f"{level.capitalize()} risk ({score}/100): {main}{extra}. {advice}", self.name)
 
     def summarize_ring(self, stats: dict) -> AIText:
         def plural(n, word):

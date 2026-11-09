@@ -146,6 +146,9 @@ PAYPAL_WEBHOOK_ID = os.environ.get("PAYPAL_WEBHOOK_ID", "")
 PAYPAL_MERCHANT_ID = os.environ.get("PAYPAL_MERCHANT_ID", "")
 PAYPAL_API_BASE = os.environ.get("PAYPAL_API_BASE", "https://api-m.sandbox.paypal.com")
 
+# Buttons in the seller UI that play simulated PayPal events and reset the demo shop.
+DEMO_CONTROLS = env_bool("DEMO_CONTROLS", True)
+
 # "template" needs no key. "gemini" uses Google's Gemini API when GEMINI_API_KEY is set
 # and falls back to the template on any error, rate limit or failed safety check.
 AI_PROVIDER = os.environ.get("AI_PROVIDER", "template")

@@ -318,3 +318,12 @@ Also:
    - `PAYPAL_MODE=sandbox`, the client ID and secret, and `PAYPAL_WEBHOOK_ID`
    - `PAYPAL_MERCHANT_ID`: run `connect_paypal --discover` to get it
    - Then restart and run `connect_paypal`; it should say "Ready".
+
+### Day 4c (9 Nov): storefront polish
+- **Ledger theme in the shop:** the shop now uses the same visual language as Ringside: navy band with a gold ring mark and bag counter, navy hero, serif headings, mono eyebrows, the same cards, and a navy footer.
+- **Product images:** four original studio-style SVG illustrations in `frontend/public/shop/` (`jl-*.svg`, 9–13 KB each, drawn for this project, so there is no licensing question). The catalogue API returns an `image` path per product. If an image fails to load, the card falls back to the product's colour swatch.
+- **Wording:** user-facing text no longer says "sandbox":
+  - the shop banner is gone; checkout-closed messages are neutral
+  - the login footer says "Connected to PayPal"
+  - the sidebar badge shows `connected` or `demo data`
+  - The README and video still say plainly that payments run on PayPal's test environment, as the hackathon rules require.

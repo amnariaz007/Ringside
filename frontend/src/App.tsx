@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { api } from './api'
 import { useAuth } from './auth'
@@ -12,6 +13,54 @@ const NAV = [
   { to: '/disputes', label: 'Disputes', icon: 'disputes' },
   { to: '/audit', label: 'Audit log', icon: 'audit' },
 ] as const
+
+const DEMO_EVENTS = [
+  { key: 'normal', label: 'Normal order' },
+  { key: 'scammer', label: 'Risky order' },
+  { key: 'ring', label: 'Fraud-ring order' },
+  { key: 'dispute', label: 'Buyer dispute' },
+] as const
+
+/** Plays a simulated PayPal event through the real pipeline, then opens what it produced. */
+function DemoEvents() {
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState('')
+  const [error, setError] = useState('')
+
+  async function run(key: string, action: () => Promise<{ go: string }>) {
+    setBusy(key); setError('')
+    try {
+      const { go } = await action()
+      window.location.assign(go) // full reload, so every list shows the new data
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setBusy('')
+    }
+  }
+
+  return (
+    <div className="demo-events">
+      <button className="demo-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+        Demo events <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div className="demo-list">
+          {DEMO_EVENTS.map((e) => (
+            <button key={e.key} disabled={busy !== ''} onClick={() => void run(e.key, () => api.demoPlay(e.key))}>
+              {busy === e.key ? 'Arriving…' : e.label}
+            </button>
+          ))}
+          <button className="demo-reset" disabled={busy !== ''}
+            onClick={() => window.confirm('Reset the demo? This deletes all orders, disputes and the audit log, then rebuilds the 30-day history.')
+              && void run('reset', () => api.demoReset())}>
+            {busy === 'reset' ? 'Resetting…' : 'Reset demo data'}
+          </button>
+          {error && <span className="demo-error" role="alert">{error}</span>}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function Shell() {
   const { user, logout } = useAuth()
@@ -43,9 +92,10 @@ function Shell() {
             <span>Austin, Texas · USD</span>
             <a href="/shop" target="_blank" rel="noreferrer">Open the shop ↗</a>
           </div>
+          {health.data?.demo_controls && <DemoEvents />}
           {health.data && (
-            <span className="env" title="Simulated data is labelled honestly; sandbox mode calls PayPal's sandbox API.">
-              PAYPAL <b>{health.data.paypal_mode}</b> · AI <b>{health.data.ai_provider}</b>
+            <span className="env">
+              PAYPAL <b>{health.data.paypal_mode === 'mock' ? 'demo data' : 'connected'}</b> · AI <b>{health.data.ai_provider}</b>
             </span>
           )}
           {user && (

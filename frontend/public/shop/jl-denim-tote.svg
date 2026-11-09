@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4efe6"/>
+      <stop offset="1" stop-color="#e8e0cf"/>
+    </linearGradient>
+    <filter id="soft" filterUnits="userSpaceOnUse" x="0" y="0" width="800" height="800">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+    <filter id="softSm" filterUnits="userSpaceOnUse" x="0" y="0" width="800" height="800">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <linearGradient id="denim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1f2d4d"/>
+      <stop offset="0.18" stop-color="#2c3e66"/>
+      <stop offset="0.5" stop-color="#334872"/>
+      <stop offset="0.82" stop-color="#2c3e66"/>
+      <stop offset="1" stop-color="#1c2946"/>
+    </linearGradient>
+    <linearGradient id="denimV" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.06"/>
+      <stop offset="0.6" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#0b1222" stop-opacity="0.35"/>
+    </linearGradient>
+    <linearGradient id="inner" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#121b30"/>
+      <stop offset="1" stop-color="#1f2d4d"/>
+    </linearGradient>
+    <pattern id="twill" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)">
+      <rect width="6" height="6" fill="none"/>
+      <line x1="0" y1="0" x2="0" y2="6" stroke="#9fb3d9" stroke-width="1.2" stroke-opacity="0.22"/>
+      <line x1="3" y1="0" x2="3" y2="6" stroke="#0a1020" stroke-width="1" stroke-opacity="0.25"/>
+    </pattern>
+    <filter id="slub" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9 0.04" numOctaves="2" seed="7"/>
+      <feColorMatrix values="0 0 0 0 0.75  0 0 0 0 0.82  0 0 0 0 0.95  0 0 0 0.5 -0.15"/>
+      <feComposite in2="SourceGraphic" operator="in"/>
+    </filter>
+    <linearGradient id="leather" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8f6240"/>
+      <stop offset="0.35" stop-color="#c49166"/>
+      <stop offset="0.65" stop-color="#b5835a"/>
+      <stop offset="1" stop-color="#7f5536"/>
+    </linearGradient>
+    <radialGradient id="rivet" cx="0.38" cy="0.35" r="0.7">
+      <stop offset="0" stop-color="#f1c49a"/>
+      <stop offset="0.45" stop-color="#b87333"/>
+      <stop offset="1" stop-color="#6d3f17"/>
+    </radialGradient>
+    <clipPath id="bodyClip">
+      <path id="bodyShape" d="M150 318 Q400 306 650 318 L664 664 Q666 690 640 692 Q400 702 160 692 Q134 690 136 664 Z"/>
+    </clipPath>
+  </defs>
+
+  <rect width="800" height="800" fill="url(#bg)"/>
+
+  <!-- contact shadow -->
+  <ellipse cx="400" cy="700" rx="290" ry="20" fill="#1a1f2a" opacity="0.2" filter="url(#soft)"/>
+  <ellipse cx="400" cy="694" rx="255" ry="6" fill="#1a1f2a" opacity="0.22" filter="url(#softSm)"/>
+
+  <!-- back handle (seen through opening, slightly behind) -->
+  <g opacity="0.95">
+    <path d="M300 322 C300 160 500 160 500 322" fill="none" stroke="#6e4a2f" stroke-width="24" stroke-linecap="butt"/>
+    <path d="M300 322 C300 168 500 168 500 322" fill="none" stroke="#000" stroke-opacity="0.12" stroke-width="6"/>
+  </g>
+
+  <!-- back panel top edge visible inside opening -->
+  <path d="M152 318 Q400 300 648 318 L648 330 Q400 318 152 330 Z" fill="url(#inner)"/>
+
+  <!-- body -->
+  <g clip-path="url(#bodyClip)">
+    <rect x="120" y="290" width="560" height="420" fill="url(#denim)"/>
+    <rect x="120" y="290" width="560" height="420" fill="url(#twill)"/>
+    <rect x="120" y="290" width="560" height="420" fill="#fff" filter="url(#slub)" opacity="0.18"/>
+    <rect x="120" y="290" width="560" height="420" fill="url(#denimV)"/>
+
+    <!-- soft slump folds -->
+    <path d="M330 360 C350 450 330 560 360 690" fill="none" stroke="#0a1222" stroke-opacity="0.28" stroke-width="18" filter="url(#softSm)"/>
+    <path d="M345 360 C362 450 344 560 374 690" fill="none" stroke="#7d93c0" stroke-opacity="0.16" stroke-width="10" filter="url(#softSm)"/>
+    <path d="M500 370 C480 470 512 580 488 690" fill="none" stroke="#0a1222" stroke-opacity="0.22" stroke-width="16" filter="url(#softSm)"/>
+    <path d="M486 372 C468 470 498 580 474 690" fill="none" stroke="#7d93c0" stroke-opacity="0.13" stroke-width="8" filter="url(#softSm)"/>
+    <path d="M180 600 C260 640 330 650 400 648 C470 650 560 640 620 598" fill="none" stroke="#0a1222" stroke-opacity="0.2" stroke-width="20" filter="url(#softSm)"/>
+    <path d="M200 380 Q400 400 600 380" fill="none" stroke="#0a1222" stroke-opacity="0.2" stroke-width="12" filter="url(#softSm)"/>
+    <path d="M150 650 C230 672 300 676 330 690" fill="none" stroke="#7d93c0" stroke-opacity="0.12" stroke-width="8" filter="url(#softSm)"/>
+    <path d="M650 650 C570 672 500 676 470 690" fill="none" stroke="#7d93c0" stroke-opacity="0.12" stroke-width="8" filter="url(#softSm)"/>
+    <ellipse cx="420" cy="500" rx="120" ry="150" fill="#9fb3d9" opacity="0.07" filter="url(#soft)"/>
+    <!-- side seam shading -->
+    <rect x="120" y="290" width="38" height="420" fill="#0a1222" opacity="0.18" filter="url(#softSm)"/>
+    <rect x="642" y="290" width="38" height="420" fill="#0a1222" opacity="0.18" filter="url(#softSm)"/>
+  </g>
+
+  <!-- body edge -->
+  <use href="#bodyShape" fill="none" stroke="#141e36" stroke-width="1.5"/>
+
+  <!-- selvedge band along top opening -->
+  <path d="M150 318 Q400 306 650 318 L650.6 332 Q400 320 150.6 332 Z" fill="#efe9dc"/>
+  <path d="M150.3 325 Q400 313 650.3 325" fill="none" stroke="#b03a2e" stroke-width="2.2"/>
+  <path d="M150.6 332 Q400 320 650.6 332" fill="none" stroke="#000" stroke-opacity="0.18" stroke-width="1"/>
+
+  <!-- top hem fold shadow -->
+  <path d="M151 334 Q400 322 651 334 L652 362 Q400 350 152 362 Z" fill="#0a1222" opacity="0.18"/>
+  <!-- contrast stitching -->
+  <g fill="none" stroke="#c9a45c" stroke-width="1.8" stroke-dasharray="7 5" stroke-linecap="round">
+    <path d="M154 346 Q400 334 646 346"/>
+    <path d="M155 356 Q400 344 645 356"/>
+    <path d="M157 330 L170 676"/>
+    <path d="M643 330 L630 676"/>
+    <path d="M168 680 Q400 690 632 680"/>
+  </g>
+
+  <!-- front handle -->
+  <g>
+    <path d="M276 400 L276 300 C276 120 524 120 524 300 L524 400" fill="none" stroke="#000" stroke-opacity="0.18" stroke-width="30" filter="url(#softSm)" transform="translate(4 6)"/>
+    <path d="M276 404 L276 300 C276 120 524 120 524 300 L524 404" fill="none" stroke="url(#leather)" stroke-width="28"/>
+    <path d="M276 404 L276 300 C276 120 524 120 524 300 L524 404" fill="none" stroke="#e8bf93" stroke-opacity="0.35" stroke-width="3" transform="translate(-6 -2)"/>
+    <path d="M276 404 L276 300 C276 120 524 120 524 300 L524 404" fill="none" stroke="#5a3b22" stroke-opacity="0.6" stroke-width="1.2" transform="translate(13 0)"/>
+    <path d="M276 404 L276 300 C276 120 524 120 524 300 L524 404" fill="none" stroke="#5a3b22" stroke-opacity="0.5" stroke-width="1.2" transform="translate(-13 0)"/>
+    <!-- handle stitching -->
+    <path d="M268 396 L268 300 C268 112 532 112 532 300 L532 396" fill="none" stroke="#f0dcc0" stroke-opacity="0.55" stroke-width="1.2" stroke-dasharray="4 4"/>
+    <path d="M284 396 L284 300 C284 128 516 128 516 300 L516 396" fill="none" stroke="#f0dcc0" stroke-opacity="0.55" stroke-width="1.2" stroke-dasharray="4 4"/>
+  </g>
+
+  <!-- handle tab ends (leather patches) -->
+  <g>
+    <rect x="258" y="356" width="36" height="52" rx="4" fill="url(#leather)" stroke="#5a3b22" stroke-opacity="0.5" stroke-width="1"/>
+    <rect x="506" y="356" width="36" height="52" rx="4" fill="url(#leather)" stroke="#5a3b22" stroke-opacity="0.5" stroke-width="1"/>
+    <rect x="262" y="360" width="28" height="44" rx="2" fill="none" stroke="#f0dcc0" stroke-opacity="0.5" stroke-width="1" stroke-dasharray="3 3"/>
+    <rect x="510" y="360" width="28" height="44" rx="2" fill="none" stroke="#f0dcc0" stroke-opacity="0.5" stroke-width="1" stroke-dasharray="3 3"/>
+    <rect x="258" y="404" width="36" height="6" rx="3" fill="#000" opacity="0.15" filter="url(#softSm)"/>
+    <rect x="506" y="404" width="36" height="6" rx="3" fill="#000" opacity="0.15" filter="url(#softSm)"/>
+  </g>
+
+  <!-- copper rivets -->
+  <g>
+    <circle cx="276" cy="370" r="7" fill="url(#rivet)" stroke="#5c3412" stroke-width="0.8"/>
+    <circle cx="276" cy="394" r="7" fill="url(#rivet)" stroke="#5c3412" stroke-width="0.8"/>
+    <circle cx="524" cy="370" r="7" fill="url(#rivet)" stroke="#5c3412" stroke-width="0.8"/>
+    <circle cx="524" cy="394" r="7" fill="url(#rivet)" stroke="#5c3412" stroke-width="0.8"/>
+    <circle cx="274" cy="368" r="2" fill="#fbe2c6" opacity="0.8"/>
+    <circle cx="274" cy="392" r="2" fill="#fbe2c6" opacity="0.8"/>
+    <circle cx="522" cy="368" r="2" fill="#fbe2c6" opacity="0.8"/>
+    <circle cx="522" cy="392" r="2" fill="#fbe2c6" opacity="0.8"/>
+  </g>
+</svg>
