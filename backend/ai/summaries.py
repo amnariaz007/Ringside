@@ -15,6 +15,7 @@ from __future__ import annotations
 import hashlib
 import json
 import threading
+import time
 
 from django.core.cache import cache
 from django.db import close_old_connections
@@ -23,7 +24,12 @@ from .models import AICache
 from .providers import TemplateProvider, get_provider
 
 TASK = "ring_summary_final"
-LOCK_SECONDS = 180  # one attempt per ring at a time; retried after this if the model was down
+# One writer per ring at a time. The lock lives while the writer runs (it is released
+# when the writer finishes); LOCK_SECONDS only bounds a writer that died without releasing it.
+LOCK_SECONDS = 300
+ATTEMPTS = 3  # the writer itself retries, so a busy model doesn't leave the page waiting for the lock to expire
+RETRY_PAUSE = 3.0
+GIVE_UP_SECONDS = 60  # after ATTEMPTS failures, don't relaunch a writer for this long
 
 
 def _key(stats: dict) -> str:
@@ -42,13 +48,22 @@ def generate(stats: dict) -> dict | None:
     return data
 
 
-def _worker(stats: dict) -> None:
+def _worker(stats: dict, lock_key: str) -> None:
     close_old_connections()
+    done = False
     try:
-        generate(stats)
+        for _ in range(ATTEMPTS):
+            if generate(stats) is not None:
+                done = True
+                break
+            time.sleep(RETRY_PAUSE)
     except Exception:
-        pass  # the template text is already on screen; the next page load retries
+        pass  # the template text is already on screen; a later page load retries
     finally:
+        if done:
+            cache.delete(lock_key)
+        else:
+            cache.set(lock_key, 1, GIVE_UP_SECONDS)
         close_old_connections()
 
 
@@ -62,7 +77,8 @@ def ring_summary(stats: dict) -> dict:
     hit = AICache.objects.filter(key=key).first()
     if hit:
         return {"summary": hit.response["text"], "summary_source": hit.response["source"], "summary_pending": False}
-    if cache.add(f"ring-summary-lock:{key}", 1, LOCK_SECONDS):
-        threading.Thread(target=_worker, args=(stats,), daemon=True, name="ring-summary").start()
+    lock_key = f"ring-summary-lock:{key}"
+    if cache.add(lock_key, 1, LOCK_SECONDS):
+        threading.Thread(target=_worker, args=(stats, lock_key), daemon=True, name="ring-summary").start()
     text = TemplateProvider().summarize_ring(stats)
     return {"summary": text.text, "summary_source": text.source, "summary_pending": True}

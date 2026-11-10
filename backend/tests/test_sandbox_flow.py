@@ -217,6 +217,12 @@ def test_shop_info_is_public_and_hides_the_client_id_in_mock_mode():
     body = r.json()
     assert body["checkout_enabled"] is False and body["paypal_client_id"] == ""
     assert len(body["products"]) == 4
+    assert body["demo_controls"] is True
+
+
+def test_shop_info_hides_demo_scenarios_when_controls_are_off(settings):
+    settings.DEMO_CONTROLS = False
+    assert Client().get("/api/shop/").json()["demo_controls"] is False
 
 
 def test_checkout_is_closed_in_mock_mode():

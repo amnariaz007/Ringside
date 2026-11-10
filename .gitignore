@@ -17,3 +17,10 @@ docs/COMPETITIVE_STRATEGY.md
 
 # Production file cache (rate limits)
 backend/.cache/
+
+# demo video recorder
+video/.recorder.env
+video/clips/
+
+# Demo video recordings and recorder settings
+video/

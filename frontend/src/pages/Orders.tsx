@@ -79,7 +79,7 @@ export default function Orders() {
 
   const columns = useMemo<ColDef<OrderRow>[]>(() => [
     {
-      headerName: 'Risk', field: 'score', width: 130, sort: 'desc',
+      headerName: 'Risk', field: 'score', width: 130,
       cellRenderer: (p: CustomCellRendererProps<OrderRow>) => <RiskCell score={p.data?.score ?? null} level={p.data?.level ?? null} />,
       filter: 'agNumberColumnFilter',
     },
@@ -87,7 +87,7 @@ export default function Orders() {
       getQuickFilterText: (p) => `${p.data?.buyer} ${p.data?.payer_id}` },
     { headerName: 'Why', field: 'rules', flex: 1.6, minWidth: 300, sortable: false, cellRenderer: SignalsCell,
       valueFormatter: (p) => (p.value ?? []).join(' '), getQuickFilterText: (p) => (p.data?.rules ?? []).map((r) => RULE_LABEL[r] ?? r).join(' ') },
-    { headerName: 'Placed', field: 'created_at', width: 150, valueFormatter: (p) => (p.value ? dateTime(p.value) : '') },
+    { headerName: 'Placed', field: 'created_at', width: 150, sort: 'desc', valueFormatter: (p) => (p.value ? dateTime(p.value) : '') },
     { headerName: 'Route', colId: 'route', width: 110, sortable: false, cellRenderer: RouteCell,
       valueGetter: (p) => `${p.data?.payer_country}->${p.data?.ship_country}` },
     { headerName: 'Protection', field: 'seller_protection', width: 150,

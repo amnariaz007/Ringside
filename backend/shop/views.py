@@ -55,6 +55,8 @@ def shop_info(request):
         "checkout_enabled": enabled,
         # The client ID is public by design: PayPal's JS SDK puts it in the page's script URL.
         "paypal_client_id": settings.PAYPAL_CLIENT_ID if enabled else "",
+        # The storefront shows a "Demo scenarios" strip (simulated buyers) while demo controls are on.
+        "demo_controls": settings.DEMO_CONTROLS,
     })
 
 

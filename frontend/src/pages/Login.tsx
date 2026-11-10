@@ -42,7 +42,7 @@ export default function Login() {
             <li><b>03</b> Dispute copilot with evidence, guardrails and your sign-off</li>
           </ul>
         </div>
-        <p className="login-foot">Connected to PayPal · built for the PayPal AI Hackathon 2026</p>
+        <p className="login-foot">Connected to PayPal</p>
         <RingsArt className="login-rings" size={520} />
       </section>
 
@@ -66,7 +66,6 @@ export default function Login() {
           <button className="button button-primary" type="submit" disabled={busy}>
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
-          <p className="muted small">Judges: the demo login is in the Devpost submission.</p>
         </form>
       </section>
     </div>

@@ -89,3 +89,14 @@ def test_health_reports_modes(client):
         "demo_controls": True,
         "paypal_setup": {"keys": False, "webhook_id": False, "merchant_id": False},
     }
+
+
+def test_seeded_shipments_are_never_dated_in_the_future(db):
+    from django.utils import timezone
+    from core.models import Shipment
+    from paypal_integration.demo import seed_history
+    seed_history()
+    now = timezone.now()
+    assert not Shipment.objects.filter(shipped_at__gt=now).exists()
+    assert not Shipment.objects.filter(delivered_at__gt=now).exists()
+    assert Shipment.objects.filter(status="DELIVERED").count() > 50

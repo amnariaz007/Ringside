@@ -242,3 +242,8 @@ Checked against the live site, https://ringside.duckdns.org:
 ### Not verified yet
 - **A real sandbox checkout, webhook delivery, tracking push and dispute.** These need the deploy, the webhook ID and the merchant ID on the VPS.
 - **The shop page in a real browser.** The PayPal JS SDK renders only with sandbox mode on.
+
+### Day 5 (10 Nov)
+- `pytest tests/test_sandbox_flow.py tests/test_demo_and_api.py`: 72 passed (adds `demo_controls` in shop info, on and off).
+- `tsc --noEmit` and `vite build` clean.
+- Browser (local): shop strip renders, fraud-ring feed plays four lines in order, anonymous click shows the sign-in message. The signed-in path reuses the endpoint the sidebar menu already exercises; the "Open in Ringside" link is to check on the VPS after deploy.

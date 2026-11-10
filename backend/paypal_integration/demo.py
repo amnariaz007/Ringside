@@ -84,16 +84,25 @@ def _tracking(rng: random.Random, carrier: str, length: int) -> str:
     return ("1Z" + digits[2:]) if carrier == "UPS" else digits
 
 
-def _ship_all(rng: random.Random, order_ids: list[str]) -> None:
-    """Every seeded order was shipped with tracking the next day and delivered 3-5 days later."""
+def _ship_all(rng: random.Random, order_ids: list[str], now: datetime | None = None) -> None:
+    """Every seeded order was shipped with tracking the next day and delivered 3-5 days later.
+    Nothing is dated in the future: the newest orders are still in transit or not yet shipped."""
     from core.models import Shipment
+    now = now or timezone.now()
+    shipments = []
     for order in Order.objects.filter(paypal_order_id__in=order_ids, shipment__isnull=True).order_by("created_at"):
         carrier, length = rng.choice(CARRIERS)
         shipped = order.created_at + timedelta(hours=rng.randrange(14, 30))
-        Shipment.objects.create(
-            order=order, carrier=carrier, tracking_number=_tracking(rng, carrier, length), status="DELIVERED",
-            shipped_at=shipped, delivered_at=shipped + timedelta(days=rng.randrange(3, 6), hours=rng.randrange(0, 8)),
-        )
+        delivered = shipped + timedelta(days=rng.randrange(3, 6), hours=rng.randrange(0, 8))
+        if shipped > now:
+            continue  # ordered less than a day ago: the seller hasn't shipped it yet
+        in_transit = delivered > now
+        shipments.append(Shipment(
+            order=order, carrier=carrier, tracking_number=_tracking(rng, carrier, length),
+            status="SHIPPED" if in_transit else "DELIVERED",
+            shipped_at=shipped, delivered_at=None if in_transit else delivered,
+        ))
+    Shipment.objects.bulk_create(shipments)
 
 
 def seed_history(now: datetime | None = None, seed: int = 42) -> dict:
@@ -148,7 +157,7 @@ def seed_history(now: datetime | None = None, seed: int = 42) -> dict:
     for o in orders:
         MockPayPalClient.put("order", o["id"], o)
         ingest_order(o)
-    _ship_all(rng, [o["id"] for o in orders])
+    _ship_all(rng, [o["id"] for o in orders], now)
     for r in refunds:
         ingest_refund(r)
     for d in disputes:

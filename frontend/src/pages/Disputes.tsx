@@ -52,8 +52,8 @@ export default function Disputes() {
       valueGetter: (p) => p.data?.copilot?.status ?? '' },
     { headerName: 'PayPal status', field: 'status', width: 200,
       valueFormatter: (p) => (p.data?.outcome ? humanize(p.data.outcome) : humanize(p.value ?? '')) },
-    { headerName: 'Respond by', field: 'seller_response_due_at', width: 140, cellRenderer: DeadlineCell, sort: 'asc' },
-    { headerName: 'Opened', field: 'created_at', width: 140, valueFormatter: (p) => (p.value ? dateTime(p.value) : '') },
+    { headerName: 'Respond by', field: 'seller_response_due_at', width: 140, cellRenderer: DeadlineCell },
+    { headerName: 'Opened', field: 'created_at', width: 140, sort: 'desc', valueFormatter: (p) => (p.value ? dateTime(p.value) : '') },
     { headerName: 'Amount', field: 'amount', width: 110, type: 'rightAligned', comparator: (a, b) => Number(a) - Number(b),
       valueFormatter: (p) => (p.data ? money(p.value, p.data.currency) : '') },
   ], [])

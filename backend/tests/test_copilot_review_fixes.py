@@ -253,3 +253,16 @@ def test_dates_use_seller_timezone(case):
     Shipment.objects.filter(order=case.dispute.order).update(delivered_at=datetime(2026, 11, 11, 3, 30, tzinfo=timezone.utc))
     ev, _ = evidence.gather(case.dispute)
     assert "10 Nov 2026" in next(e for e in ev if e["kind"] == "delivery")["detail"]  # 21:30 in Austin
+
+
+def test_ring_summary_writer_retries_a_busy_model(monkeypatch, db):
+    """A slow or rate-limited model must not leave the page 'pending' until the lock expires."""
+    from ai import summaries
+    calls = []
+    monkeypatch.setattr(summaries, "RETRY_PAUSE", 0)
+    monkeypatch.setattr(summaries, "generate", lambda stats: calls.append(1) or ({"text": "ok"} if len(calls) == 2 else None))
+    from django.core.cache import cache
+    cache.set("ring-summary-lock:t", 1, 60)
+    summaries._worker({"accounts": 4}, "ring-summary-lock:t")
+    assert len(calls) == 2
+    assert cache.get("ring-summary-lock:t") is None  # released when the summary is written

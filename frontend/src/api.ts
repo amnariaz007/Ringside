@@ -82,6 +82,7 @@ export interface ShopInfo {
   products: ShopProduct[]
   checkout_enabled: boolean
   paypal_client_id: string
+  demo_controls: boolean
 }
 
 export type CopilotAction = 'FIGHT' | 'ACCEPT' | 'PARTIAL_REFUND'

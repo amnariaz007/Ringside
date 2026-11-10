@@ -1,7 +1,7 @@
 import { lazy, StrictMode, Suspense } from 'react'
 import type React from 'react'
 import { createRoot } from 'react-dom/client'
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import '@fontsource-variable/fraunces'
 import '@fontsource-variable/inter'
 import '@fontsource/ibm-plex-mono/400.css'
@@ -30,6 +30,7 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <Dashboard /> },
+      { path: 'login', element: <Navigate to="/" replace /> }, // signed-out visitors get the sign-in form from App
       { path: 'orders', element: wait(<Orders />) },
       { path: 'orders/:id', element: <OrderDetail /> },
       { path: 'rings', element: wait(<Rings />) },

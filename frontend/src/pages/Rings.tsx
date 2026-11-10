@@ -135,7 +135,7 @@ function GraphView({ payerId }: { payerId: string }) {
     let tries = 0
     const timer = window.setInterval(() => {
       tries += 1
-      if (tries > 15) return window.clearInterval(timer)
+      if (tries > 45) return window.clearInterval(timer) // up to 3 minutes: the writer retries a slow model
       api.buyerGraph(payerId).then((g) => {
         if (!g.summary_pending) {
           setLate({ payerId, summary: g.summary, source: g.summary_source })
